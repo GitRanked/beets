@@ -10,13 +10,16 @@ import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.object.entity.channel.VoiceChannel;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.netty.FutureMono;
 
 @Singleton
 public class VCManager {
+
+  private static final Logger log = LoggerFactory.getLogger(VCManager.class);
 
   private final ConcurrentHashMap<Snowflake, VCSession> sessionsByVC = new ConcurrentHashMap<>();
   private final GatewayDiscordClient client;
@@ -72,10 +75,10 @@ public class VCManager {
   }
 
   public void onDisconnect(Snowflake vcId) {
+    log.info("Disconnected from " + vcId);
     VCSession session = sessionsByVC.remove(vcId);
     if (session != null) {
-      session.player.destroy();
+      session.destroy();
     }
   }
-
 }

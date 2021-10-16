@@ -7,8 +7,6 @@ import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.object.VoiceState;
 import discord4j.core.object.entity.PartialMember;
 import discord4j.rest.util.ApplicationCommandOptionType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 @CommandDesc(
@@ -23,9 +21,7 @@ import reactor.core.publisher.Mono;
     }
 )
 @Singleton
-public class PlayCommand implements Command {
-  
-  private static Logger log = LoggerFactory.getLogger(PlayCommand.class);
+public class PlayCommand extends CommandBase {
 
   private final VCManager vcManager;
 
@@ -36,6 +32,7 @@ public class PlayCommand implements Command {
 
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
+    logCall(event);
     String beet = event.getOption("beet").get().getValue().get().asString();
     return event.getInteraction().getGuild().flatMap(
         guild -> guild.getMemberById(event.getInteraction().getUser().getId())

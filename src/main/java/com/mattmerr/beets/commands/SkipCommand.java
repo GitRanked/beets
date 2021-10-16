@@ -1,6 +1,7 @@
 package com.mattmerr.beets.commands;
 
 import static discord4j.core.event.EventDispatcher.log;
+import static discord4j.core.event.EventDispatcher.replayingWithTimeout;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -17,7 +18,7 @@ import reactor.core.publisher.Mono;
     options = {}
 )
 @Singleton
-public class SkipCommand implements Command {
+public class SkipCommand extends CommandBase {
 
   private final VCManager vcManager;
 
@@ -28,6 +29,7 @@ public class SkipCommand implements Command {
 
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
+    logCall(event);
     return event.getInteraction().getGuild().flatMap(
         guild -> guild.getMemberById(event.getInteraction().getUser().getId())
             .flatMap(PartialMember::getVoiceState)

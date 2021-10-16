@@ -12,17 +12,22 @@ import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.event.domain.lifecycle.DisconnectEvent;
 import discord4j.discordjson.json.ApplicationCommandRequest;
+import discord4j.discordjson.possible.Possible;
 import discord4j.rest.RestClient;
+import discord4j.rest.util.Color;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Map;
 
-import static discord4j.core.event.EventDispatcher.log;
-
 public class BeetsBot {
+
+    public static final Color COLOR = Color.of(0xFF4444);
+    private static final Logger log = LoggerFactory.getLogger(BeetsBot.class);
 
     private static final Map<String, Command> commands = new HashMap<>();
 
@@ -45,6 +50,8 @@ public class BeetsBot {
         var restClient = injector.getInstance(RestClient.class);
         var commandManager = injector.getInstance(CommandManager.class);
         long applicationId = restClient.getApplicationId().block();
+        
+        log.info("weee");
 
         client.getGuilds().map(guild -> {
             restClient.getApplicationService()
@@ -65,6 +72,7 @@ public class BeetsBot {
             @Nonnull
             @Override
             public Publisher<?> onSlashCommand(@Nonnull SlashCommandEvent event) {
+                log.info("Received event!");
                 try {
                     var cmdClass = CommandManager.commandsByName.get(event.getCommandName());
                     return injector.getInstance(cmdClass)
@@ -78,7 +86,9 @@ public class BeetsBot {
                     return Mono.empty();
                 }
             }
-        }).blockLast();
+        }).doOnError(e -> log.warn(
+            "Unable to create guild command",
+            e)).blockLast();
 
         client.onDisconnect().block();
     }

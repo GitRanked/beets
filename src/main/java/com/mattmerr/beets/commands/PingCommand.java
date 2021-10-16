@@ -2,8 +2,11 @@ package com.mattmerr.beets.commands;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.mattmerr.beets.BeetsBot;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.rest.util.ApplicationCommandOptionType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 @CommandDesc(
@@ -12,8 +15,8 @@ import reactor.core.publisher.Mono;
     options = {}
 )
 @Singleton
-public class PingCommand implements Command {
-    
+public class PingCommand extends CommandBase {
+
     @Inject
     PingCommand() {}
     
