@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM maven:3.8.3-openjdk-11-slim@sha256:1c12a5df43421795054874fd54bb8b37d242949133b5bf6052a063a13a93f13a20e6e9dae2b3d85b9c7034ec977bbc2b6e7f66832182b9c863711d78bfe60faa AS build
+FROM maven:3.8.3-openjdk-11-slim
 RUN mkdir /project
 COPY . /project
 WORKDIR /project
