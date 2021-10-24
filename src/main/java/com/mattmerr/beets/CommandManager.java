@@ -9,6 +9,7 @@ import com.mattmerr.beets.commands.PingCommand;
 import com.mattmerr.beets.commands.PlayCommand;
 import com.mattmerr.beets.commands.QueueCommand;
 import com.mattmerr.beets.commands.SkipCommand;
+import com.mattmerr.beets.commands.StopCommand;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
 import org.slf4j.Logger;
@@ -22,7 +23,8 @@ public class CommandManager {
         PingCommand.class,
         PlayCommand.class,
         QueueCommand.class,
-        SkipCommand.class
+        SkipCommand.class,
+        StopCommand.class
     );
     
     public static final ImmutableMap<String, Class<? extends Command>> commandsByName;

@@ -29,7 +29,8 @@ public class VCSession {
   private Mono<VoiceConnection> conn = null;
   private Disposable stateSub;
 
-  public VCSession(VCManager manager,
+  public VCSession(
+      VCManager manager,
       GatewayDiscordClient client,
       VoiceChannel vc,
       AudioPlayerManager playerManager) {
@@ -42,7 +43,7 @@ public class VCSession {
     this.provider = new LavaPlayerAudioProvider(this.player);
     this.trackScheduler = new TrackScheduler(this, this.player);
     this.player.addListener(this.trackScheduler);
-    
+
     log.info("Session created for " + vc.getId());
   }
 
@@ -51,21 +52,22 @@ public class VCSession {
       return conn;
     }
     return conn =
-        vc.join(VoiceChannelJoinSpec.builder()
-            .provider(provider)
-            .build())
-            .doOnNext(voiceConnection -> {
-              log.info(voiceConnection.toString());
-              stateSub = voiceConnection
-                  .stateEvents()
-                  .subscribe(
-                      state -> {
-                        log.info(state.name());
-                        if (state == VoiceConnection.State.DISCONNECTED) {
-                          manager.onDisconnect(vc.getId());
-                        }
-                      });
-            }).share();
+        vc.join(VoiceChannelJoinSpec.builder().provider(provider).build())
+            .doOnNext(
+                voiceConnection -> {
+                  log.info(voiceConnection.toString());
+                  stateSub =
+                      voiceConnection
+                          .stateEvents()
+                          .subscribe(
+                              state -> {
+                                log.info(state.name());
+                                if (state == VoiceConnection.State.DISCONNECTED) {
+                                  manager.onDisconnect(vc.getId());
+                                }
+                              });
+                })
+            .share();
   }
 
   public void skip() {
@@ -79,16 +81,17 @@ public class VCSession {
   public ImmutableList<AudioTrack> getQueuedTracks() {
     return trackScheduler.getQueue();
   }
-  
+
   public void disconnect() {
     if (conn != null) {
       conn.flatMap(VoiceConnection::disconnect).block();
       log.info("Disconnected!");
+      conn = null;
     } else {
       log.info("Not connected!");
     }
   }
-  
+
   public void destroy() {
     conn = null;
     stateSub.dispose();

@@ -79,10 +79,17 @@ public class QueueCommand extends CommandBase {
     }
     
     StringJoiner joiner = new StringJoiner("\n");
-    joiner.add("Currently Playing: " + status.currentTrack().getInfo().title);
+    joiner.add(format(
+        "Currently Playing: (%s) %s",
+        formatSeek(status.currentTrack().getPosition(), status.currentTrack().getDuration()),
+        status.currentTrack().getInfo().title));
+    
     int idx = 1;
     for (AudioTrack track : status.queue()) {
-      joiner.add(format("%d. %s", idx++, track.getInfo().title));
+      joiner.add(format(
+          "%d. (%s) %s",
+          idx++,
+          formatDuration(track.getDuration()), track.getInfo().title));
     }
     return InteractionApplicationCommandCallbackSpec.builder()
         .addEmbed(EmbedCreateSpec.builder()
@@ -95,7 +102,27 @@ public class QueueCommand extends CommandBase {
   }
   
   public static String formatDuration(long durationMillis) {
-    long hours = durationMillis / 1000 / 60 / 60;
-    long minutes = durationMillis - 
+    Duration duration = Duration.ofMillis(durationMillis);
+    return duration.toHours() == 0
+        ? format(
+            "%02d:%02d",
+            duration.toMinutes(), duration.toSecondsPart())
+        : format(
+            "%02d:%02d:%02d",
+            duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
+  }
+
+  public static String formatSeek(long seekMillis, long durationMillis) {
+    Duration seekDuration = Duration.ofMillis(seekMillis);
+    Duration duration = Duration.ofMillis(durationMillis);
+    return duration.toHours() == 0
+        ? format(
+            "%02d:%02d / %02d:%02d",
+            seekDuration.toMinutes(), seekDuration.toSecondsPart(),
+            duration.toMinutes(), duration.toSecondsPart())
+        : format(
+            "%02d:%02d:%02d / %02d:%02d:%02d",
+            seekDuration.toHours(), seekDuration.toMinutesPart(), seekDuration.toSecondsPart(),
+            duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
   }
 }

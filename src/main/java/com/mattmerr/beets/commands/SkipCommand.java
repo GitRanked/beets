@@ -44,8 +44,8 @@ public class SkipCommand extends CommandBase {
             })
             .flatMap(event::reply))
 //        .then(event.reply("Joined VC!"))
-        .doOnError(e -> log.error("Error processing Play", e))
-        .onErrorResume(e -> event.reply("Error trying to Play!"));
+        .doOnError(e -> log.error("Error processing Skip", e))
+        .onErrorResume(e -> event.reply("Error trying to Skip!"));
 //        return Mono.justOrEmpty(event.getOption(ARG_TARGET_URL))
 //            .doOnNext(option -> playerManager.loadItem(
 //                option.getValue().get().asString(),
