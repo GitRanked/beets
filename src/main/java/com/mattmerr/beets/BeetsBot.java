@@ -15,6 +15,7 @@ import discord4j.discordjson.json.ApplicationCommandRequest;
 import discord4j.discordjson.possible.Possible;
 import discord4j.rest.RestClient;
 import discord4j.rest.util.Color;
+import java.net.URLEncoder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,76 +27,82 @@ import java.util.Map;
 
 public class BeetsBot {
 
-    public static final Color COLOR = Color.of(0xFF4444);
-    private static final Logger log = LoggerFactory.getLogger(BeetsBot.class);
+  public static final Color COLOR = Color.of(0xFF4444);
+  private static final Logger log = LoggerFactory.getLogger(BeetsBot.class);
 
-    private static final Map<String, Command> commands = new HashMap<>();
+  private static final Map<String, Command> commands = new HashMap<>();
 
-    public static void main(String[] args) {
-        Injector injector = Guice.createInjector(new AbstractModule() {
-            @Override
-            protected void configure() {
+  public static void main(String[] args) {
+    if (args.length == 1) {
+      System.out.println("Token: " + URLEncoder.encode(args[0]));
+    }
+
+    Injector injector =
+        Guice.createInjector(
+            new AbstractModule() {
+              @Override
+              protected void configure() {
                 super.configure();
-                final GatewayDiscordClient client = DiscordClientBuilder.create(args[0]).build().login().block();
+                final GatewayDiscordClient client =
+                    DiscordClientBuilder.create(args[0]).build().login().block();
                 bind(GatewayDiscordClient.class).toInstance(client);
                 bind(RestClient.class).toInstance(client.getRestClient());
 
                 CommandManager commandManager = new CommandManager();
                 bind(CommandManager.class).toInstance(commandManager);
-            }
-        });
-        injector.getInstance(BeetsBot.class);
-        
-        var client = injector.getInstance(GatewayDiscordClient.class);
-        var restClient = injector.getInstance(RestClient.class);
-        var commandManager = injector.getInstance(CommandManager.class);
-        long applicationId = restClient.getApplicationId().block();
-        
-        log.info("weee");
+              }
+            });
+    injector.getInstance(BeetsBot.class);
 
-        client.getGuilds().map(guild -> {
-            restClient.getApplicationService()
-                .bulkOverwriteGuildApplicationCommand(
-                    applicationId,
-                    guild.getId().asLong(),
-                    commandManager.commandRequests())
-                .doOnError(e -> log.warn(
-                    "Unable to create guild command",
-                    e))
-                .onErrorResume(e -> Mono.empty())
-                .blockLast();
-            return guild.getId();
-        }).blockLast();
+    var client = injector.getInstance(GatewayDiscordClient.class);
+    var restClient = injector.getInstance(RestClient.class);
+    var commandManager = injector.getInstance(CommandManager.class);
+    long applicationId = restClient.getApplicationId().block();
 
-        client.on(new ReactiveEventAdapter() {
+    log.info("weee");
 
-            @Nonnull
-            @Override
-            public Publisher<?> onSlashCommand(@Nonnull SlashCommandEvent event) {
+    client
+        .getGuilds()
+        .map(
+            guild -> {
+              restClient
+                  .getApplicationService()
+                  .bulkOverwriteGuildApplicationCommand(
+                      applicationId, guild.getId().asLong(), commandManager.commandRequests())
+                  .doOnError(e -> log.warn("Unable to create guild command", e))
+                  .onErrorResume(e -> Mono.empty())
+                  .blockLast();
+              return guild.getId();
+            })
+        .blockLast();
+
+    client
+        .on(
+            new ReactiveEventAdapter() {
+
+              @Nonnull
+              @Override
+              public Publisher<?> onSlashCommand(@Nonnull SlashCommandEvent event) {
                 log.info("Received event!");
                 try {
-                    var cmdClass = CommandManager.commandsByName.get(event.getCommandName());
-                    return injector.getInstance(cmdClass)
-                        .execute(event)
-                        .doOnError(e -> log.warn(
-                            "Unable to create guild command",
-                            e))
-                        .onErrorResume(e -> Mono.empty());
+                  var cmdClass = CommandManager.commandsByName.get(event.getCommandName());
+                  return injector
+                      .getInstance(cmdClass)
+                      .execute(event)
+                      .doOnError(e -> log.warn("Unable to create guild command", e))
+                      .onErrorResume(e -> Mono.empty());
                 } catch (Exception err) {
-                    err.printStackTrace();
-                    return Mono.empty();
+                  err.printStackTrace();
+                  return Mono.empty();
                 }
-            }
-        }).doOnError(e -> log.warn(
-            "Unable to create guild command",
-            e)).blockLast();
+              }
+            })
+        .doOnError(e -> log.warn("Unable to create guild command", e))
+        .blockLast();
 
-        client.onDisconnect().block();
-    }
-    
-    @Inject
-    BeetsBot() {
-        
-    }
+    client.onDisconnect().block();
+  }
 
+  @Inject
+  BeetsBot() {}
 }
