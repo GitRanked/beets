@@ -40,6 +40,7 @@ public class BeetsBot {
     if (Files.exists(Path.of(args[0]))) {
       args[0] = Files.readString(Path.of(args[0]));
     }
+    args[0] = args[0].strip();
     if (args.length == 1) {
       log.info("Token: " + URLEncoder.encode(args[0]));
     }
