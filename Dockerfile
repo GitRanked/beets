@@ -13,4 +13,4 @@ COPY --from=build /project/target/beets-1.0-SNAPSHOT-jar-with-dependencies.jar /
 WORKDIR /app
 RUN chown -R javauser:javauser /app
 USER javauser
-CMD "dumb-init" "java" "-jar" "beets.jar"
+CMD "dumb-init" "java" "-jar" "beets.jar" "/run/beets_discord_token"

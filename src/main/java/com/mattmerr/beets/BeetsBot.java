@@ -15,7 +15,10 @@ import discord4j.discordjson.json.ApplicationCommandRequest;
 import discord4j.discordjson.possible.Possible;
 import discord4j.rest.RestClient;
 import discord4j.rest.util.Color;
+import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +35,13 @@ public class BeetsBot {
 
   private static final Map<String, Command> commands = new HashMap<>();
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
+    log.info("ArgsLen: " + args.length);
+    if (Files.exists(Path.of(args[0]))) {
+      args[0] = Files.readString(Path.of(args[0]));
+    }
     if (args.length == 1) {
-      System.out.println("Token: " + URLEncoder.encode(args[0]));
+      log.info("Token: " + URLEncoder.encode(args[0]));
     }
 
     Injector injector =
