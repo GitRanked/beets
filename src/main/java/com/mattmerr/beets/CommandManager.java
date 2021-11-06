@@ -3,6 +3,7 @@ package com.mattmerr.beets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Provides;
+import com.mattmerr.beets.commands.ClipCommand;
 import com.mattmerr.beets.commands.Command;
 import com.mattmerr.beets.commands.CommandDesc;
 import com.mattmerr.beets.commands.PingCommand;
@@ -24,7 +25,8 @@ public class CommandManager {
         PlayCommand.class,
         QueueCommand.class,
         SkipCommand.class,
-        StopCommand.class
+        StopCommand.class,
+        ClipCommand.class
     );
     
     public static final ImmutableMap<String, Class<? extends Command>> commandsByName;

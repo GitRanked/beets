@@ -70,19 +70,19 @@ public class VCSession {
             .share();
   }
 
-  public void skip() {
+  public synchronized void skip() {
     this.trackScheduler.skip();
   }
 
-  public PlayStatus getStatus() {
+  public synchronized PlayStatus getStatus() {
     return new PlayStatus(player.getPlayingTrack(), trackScheduler.getQueue());
   }
 
-  public ImmutableList<AudioTrack> getQueuedTracks() {
+  public synchronized ImmutableList<AudioTrack> getQueuedTracks() {
     return trackScheduler.getQueue();
   }
 
-  public void disconnect() {
+  public synchronized void disconnect() {
     if (conn != null) {
       conn.flatMap(VoiceConnection::disconnect).block();
       log.info("Disconnected!");
@@ -92,7 +92,7 @@ public class VCSession {
     }
   }
 
-  public void destroy() {
+  public synchronized void destroy() {
     conn = null;
     stateSub.dispose();
     player.destroy();

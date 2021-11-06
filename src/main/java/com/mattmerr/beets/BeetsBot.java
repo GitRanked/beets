@@ -5,6 +5,7 @@ import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.mattmerr.beets.commands.Command;
+import com.mattmerr.beets.data.SqliteModule;
 import com.mattmerr.beets.vc.VCManager;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
@@ -58,6 +59,8 @@ public class BeetsBot {
 
                 CommandManager commandManager = new CommandManager();
                 bind(CommandManager.class).toInstance(commandManager);
+                
+                install(new SqliteModule(Path.of(args.length > 1 ? args[1] : "beets.sqlite")));
               }
             });
     injector.getInstance(BeetsBot.class);

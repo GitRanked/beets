@@ -9,6 +9,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 /**
  * This class schedules tracks for the audio player. It contains the queue of tracks.
@@ -52,7 +53,7 @@ public class TrackScheduler extends AudioEventAdapter {
   /**
    * Start the next track, stopping the current one if it is playing.
    */
-  public void nextTrack() {
+  private void nextTrack() {
     // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
     // giving null to startTrack, which is a valid argument and will simply stop the player.
     try {
