@@ -1,11 +1,11 @@
 package com.mattmerr.beets.commands;
 
+import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.vc.VCManager;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.core.object.VoiceState;
-import discord4j.core.object.entity.PartialMember;
 import discord4j.rest.util.ApplicationCommandOptionType;
 import reactor.core.publisher.Mono;
 
@@ -33,19 +33,12 @@ public class PlayCommand extends CommandBase {
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
     logCall(event);
-    String beet = event.getOption("beet").get().getValue().get().asString();
-    return event.getInteraction().getGuild().flatMap(
-        guild -> guild.getMemberById(event.getInteraction().getUser().getId())
-            .flatMap(PartialMember::getVoiceState)
-            .flatMap(VoiceState::getChannel)
-            .flatMap(vc -> vcManager.enqueue(event, vc, beet)))
-//        .then(event.reply("Joined VC!"))
+    String beet = asRequiredString(event.getOption("beet"));
+    
+    return vcManager.getChannelForInteraction(event.getInteraction())
+        .flatMap(vc -> vcManager.enqueue(event, vc, beet))
         .doOnError(e -> log.error("Error processing Play", e))
         .onErrorResume(e -> event.reply("Error trying to Play!"));
-//        return Mono.justOrEmpty(event.getOption(ARG_TARGET_URL))
-//            .doOnNext(option -> playerManager.loadItem(
-//                option.getValue().get().asString(),
-//                scheduler)).then();
   }
 
 }

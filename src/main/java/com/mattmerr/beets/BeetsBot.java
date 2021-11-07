@@ -6,28 +6,24 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.mattmerr.beets.commands.Command;
 import com.mattmerr.beets.data.SqliteModule;
-import com.mattmerr.beets.vc.VCManager;
+import com.mattmerr.beets.vc.VoiceModule;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.core.event.domain.lifecycle.DisconnectEvent;
-import discord4j.discordjson.json.ApplicationCommandRequest;
-import discord4j.discordjson.possible.Possible;
 import discord4j.rest.RestClient;
 import discord4j.rest.util.Color;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nonnull;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-
-import javax.annotation.Nonnull;
-import java.util.HashMap;
-import java.util.Map;
 
 public class BeetsBot {
 
@@ -60,6 +56,7 @@ public class BeetsBot {
                 CommandManager commandManager = new CommandManager();
                 bind(CommandManager.class).toInstance(commandManager);
                 
+                install(new VoiceModule());
                 install(new SqliteModule(Path.of(args.length > 1 ? args[1] : "beets.sqlite")));
               }
             });

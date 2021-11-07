@@ -13,10 +13,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public class VCSession {
 
   private static final Logger log = LoggerFactory.getLogger(VCManager.class);
+  private static final Scheduler pool = Schedulers.newParallel("vcsession", 2); 
 
   private final GatewayDiscordClient client;
   private final VCManager manager;
@@ -67,6 +70,7 @@ public class VCSession {
                                 }
                               });
                 })
+            .subscribeOn(pool)
             .share();
   }
 
@@ -84,8 +88,13 @@ public class VCSession {
 
   public synchronized void disconnect() {
     if (conn != null) {
-      conn.flatMap(VoiceConnection::disconnect).block();
-      log.info("Disconnected!");
+      conn.flatMap(VoiceConnection::disconnect)
+          .publishOn(pool)
+          .doOnNext(onDisconnect -> {
+            log.info("Disconnected!");
+          })
+          .doOnError(e -> log.error("Error trying to disconnect " + e))
+          .subscribe();
       conn = null;
     } else {
       log.info("Not connected!");
@@ -94,7 +103,7 @@ public class VCSession {
 
   public synchronized void destroy() {
     conn = null;
-    stateSub.dispose();
     player.destroy();
+    if (stateSub != null) stateSub.dispose();
   }
 }

@@ -1,20 +1,24 @@
 package com.mattmerr.beets.vc;
 
+import static reactor.core.publisher.Mono.error;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.mattmerr.beets.util.CachedBeetLoader;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
-import com.sedmelluq.discord.lavaplayer.track.playback.NonAllocatingAudioFrameBuffer;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
+import discord4j.core.object.VoiceState;
+import discord4j.core.object.command.Interaction;
 import discord4j.core.object.entity.channel.VoiceChannel;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-import reactor.netty.FutureMono;
+import reactor.util.retry.Retry;
 
 @Singleton
 public class VCManager {
@@ -25,53 +29,58 @@ public class VCManager {
   private final GatewayDiscordClient client;
 
   private final AudioPlayerManager playerManager;
+  private final CachedBeetLoader beetLoader;
 
   @Inject
-  public VCManager(GatewayDiscordClient client) {
+  public VCManager(
+      GatewayDiscordClient client, AudioPlayerManager playerManager, CachedBeetLoader beetLoader) {
     this.client = client;
+    this.playerManager = playerManager;
+    this.beetLoader = beetLoader;
+  }
 
-    // Creates AudioPlayer instances and translates URLs to AudioTrack instances
-    this.playerManager = new DefaultAudioPlayerManager();
-
-    // This is an optimization strategy that Discord4J can utilize.
-    // It is not important to understand
-    playerManager.getConfiguration()
-        .setFrameBufferFactory(NonAllocatingAudioFrameBuffer::new);
-
-    // Allow playerManager to parse remote sources like YouTube links
-    AudioSourceManagers.registerRemoteSources(playerManager);
+  public Mono<VoiceChannel> getChannelForInteraction(Interaction interaction) {
+    return interaction
+        .getMember()
+        .map(member -> member.getVoiceState().flatMap(VoiceState::getChannel))
+        .orElseGet(() -> error(new IllegalArgumentException("Event missing interaction member?")));
   }
 
   public VCSession getActiveSession(VoiceChannel vc) {
     return sessionsByVC.computeIfAbsent(
-        vc.getId(),
-        key -> new VCSession(this, client, vc, playerManager));
+        vc.getId(), key -> new VCSession(this, client, vc, playerManager));
+  }
+
+  public Mono<VCSession> getActiveSessionForInteraction(Interaction interaction) {
+    return getChannelForInteraction(interaction).map(this::getActiveSession);
   }
 
   public VCSession getSessionOrNull(VoiceChannel vc) {
     return sessionsByVC.computeIfAbsent(
-        vc.getId(),
-        key -> new VCSession(this, client, vc, playerManager));
+        vc.getId(), key -> new VCSession(this, client, vc, playerManager));
+  }
+
+  public Mono<VCSession> getSessionOrNullForInteraction(Interaction interaction) {
+    return getChannelForInteraction(interaction).map(this::getSessionOrNull);
   }
 
   public Mono<Void> enqueue(SlashCommandEvent event, VoiceChannel channel, String beet) {
     VCSession session = getActiveSession(channel);
 
-    return session.connect()
+    return session
+        .connect()
+        .flatMap(conn -> beetLoader.getTrack(beet))
         .flatMap(
-            conn -> {
-              var loader = new CompletableAudioLoader(beet);
-              playerManager.loadItemOrdered(channel.getId(), beet, loader);
-              return FutureMono.fromFuture(loader);
-            })
-        .flatMap(
-            loader -> {
-              if (loader.track != null) {
-                session.trackScheduler.enqueue(loader.track);
-              }
-              return event.reply(loader.message);
-            }
-        );
+            audioTrack ->
+                session.trackScheduler.enqueue(audioTrack.makeClone())
+                    ? event.reply(
+                        (session.getStatus().queue().isEmpty()
+                                ? "Now playing: "
+                                : "Queued up: ")
+                            + beet)
+                    : event.reply("Play queue is full!"))
+        .doOnError(e -> log.error("Error trying to play"))
+        .onErrorResume(e -> event.reply("Error trying to play!"));
   }
 
   public void onDisconnect(Snowflake vcId) {

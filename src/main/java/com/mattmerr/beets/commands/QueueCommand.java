@@ -44,13 +44,10 @@ public class QueueCommand extends CommandBase {
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
     logCall(event);
-    return event.getInteraction().getGuild().flatMap(
-        guild -> guild.getMemberById(event.getInteraction().getUser().getId())
-            .flatMap(PartialMember::getVoiceState)
-            .flatMap(VoiceState::getChannel)
-            .map(vc -> vcManager.getSessionOrNull(vc))
-            .map(QueueCommand::responseForSession)
-            .flatMap(event::reply))
+    return vcManager
+        .getSessionOrNullForInteraction(event.getInteraction())
+        .map(QueueCommand::responseForSession)
+        .flatMap(event::reply)
         .doOnError(e -> log.error("Error processing Play", e))
         .onErrorResume(e -> event.reply("Error trying to Play!"));
   }

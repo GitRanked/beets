@@ -7,6 +7,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.CheckReturnValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -36,6 +37,7 @@ public class TrackScheduler extends AudioEventAdapter {
    *
    * @param track The track to play or add to queue.
    */
+  @CheckReturnValue
   public boolean enqueue(AudioTrack track) {
     // Calling startTrack with the noInterrupt set to true will start the track only if nothing is currently playing. If
     // something is playing, it returns false and does nothing. In that case the player was already playing so this
@@ -56,17 +58,12 @@ public class TrackScheduler extends AudioEventAdapter {
   private void nextTrack() {
     // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
     // giving null to startTrack, which is a valid argument and will simply stop the player.
-    try {
-      AudioTrack nextTrack = queue.poll(5, TimeUnit.SECONDS);
-      if (nextTrack == null) {
-        log.info("Time out waiting for new item!");
-        session.disconnect();
-        return;
-      }
-      player.startTrack(nextTrack, false);
-    } catch (InterruptedException interruptedException) {
-      log.error("Interrupted waiting for next track", interruptedException);
+    AudioTrack nextTrack = queue.poll();
+    if (nextTrack == null) {
+      log.info("No next item!");
+      session.disconnect();
     }
+    player.startTrack(nextTrack, false);
   }
   
   public void skip() {

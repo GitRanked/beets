@@ -7,7 +7,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 
-public class CompletableAudioLoader extends CompletableFuture<CompletableAudioLoader> implements
+public class CompletableAudioLoader extends CompletableFuture<AudioTrack> implements
     AudioLoadResultHandler {
 
   private final String resource;
@@ -23,7 +23,7 @@ public class CompletableAudioLoader extends CompletableFuture<CompletableAudioLo
   public void trackLoaded(AudioTrack track) {
     this.message = "Loaded: " + resource; 
     this.track = track;
-    this.complete(this);
+    this.complete(this.track);
   }
 
   @Override
@@ -36,14 +36,14 @@ public class CompletableAudioLoader extends CompletableFuture<CompletableAudioLo
 
     this.message = "Loaded first track of: " + resource;
     this.track = firstTrack;
-    this.complete(this);
+    this.complete(this.track);
   }
 
   @Override
   public void noMatches() {
     this.message = "No match found for: " + resource;
     this.track = null;
-    this.completeExceptionally(new NoSuchElementException());
+    this.completeExceptionally(new NoSuchElementException(this.message));
   }
 
   @Override
@@ -51,5 +51,13 @@ public class CompletableAudioLoader extends CompletableFuture<CompletableAudioLo
     this.message = "Error loading: " + exception.getMessage();
     this.track = null;
     this.completeExceptionally(exception);
+  }
+
+  public String getResult() {
+    return message;
+  }
+
+  public AudioTrack getTrack() {
+    return track;
   }
 }

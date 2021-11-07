@@ -34,12 +34,6 @@ public class StopCommand extends CommandBase {
                 conn -> executeWithContext(event, guild, conn)))
         .doOnError(e -> log.error("Error processing Skip", e))
         .onErrorResume(e -> event.reply("Error trying to Skip!"));
-            
-//        .then(event.reply("Joined VC!"))
-//        return Mono.justOrEmpty(event.getOption(ARG_TARGET_URL))
-//            .doOnNext(option -> playerManager.loadItem(
-//                option.getValue().get().asString(),
-//                scheduler)).then();
   }
   
   public Mono<Void> executeWithContext(SlashCommandEvent event, Guild guild, VoiceConnection conn) {
