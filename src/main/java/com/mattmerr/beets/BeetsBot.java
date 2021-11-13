@@ -6,6 +6,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.mattmerr.beets.commands.Command;
 import com.mattmerr.beets.data.SqliteModule;
+import com.mattmerr.beets.util.RepliableEventException;
 import com.mattmerr.beets.vc.VoiceModule;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
@@ -97,8 +98,18 @@ public class BeetsBot {
                   return injector
                       .getInstance(cmdClass)
                       .execute(event)
-                      .doOnError(e -> log.warn("Unable to create guild command", e))
-                      .onErrorResume(e -> Mono.empty());
+                      .doOnError(
+                          e -> {
+                            if (!(e instanceof RepliableEventException)) {
+                              log.warn("Error running guild command", e);
+                            }
+                          })
+                      .onErrorResume(e -> {
+                        if (e instanceof RepliableEventException) {
+                          return ((RepliableEventException) e).replyToEvent(event);
+                        }
+                        return Mono.empty();
+                      });
                 } catch (Exception err) {
                   err.printStackTrace();
                   return Mono.empty();

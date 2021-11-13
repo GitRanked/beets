@@ -1,7 +1,10 @@
 package com.mattmerr.beets.util;
 
+import com.mattmerr.beets.util.RepliableEventException.MissingGuildException;
+import discord4j.common.util.Snowflake;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
+import discord4j.core.object.command.Interaction;
 import java.util.Optional;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -23,6 +26,10 @@ public class UtilD4J {
     return option
         .flatMap(ApplicationCommandInteractionOption::getValue)
         .map(ApplicationCommandInteractionOptionValue::asLong);
+  }
+  
+  public static Snowflake requireGuildId(Interaction interaction) {
+    return interaction.getGuildId().orElseThrow(MissingGuildException::new);
   }
 
 }
