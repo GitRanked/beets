@@ -1,5 +1,7 @@
 package com.mattmerr.beets.commands;
 
+import static com.mattmerr.beets.util.UtilD4J.beetsEmbedBuilder;
+import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
 import static java.lang.String.format;
 import static java.lang.String.join;
 
@@ -55,23 +57,14 @@ public class QueueCommand extends CommandBase {
   public static InteractionApplicationCommandCallbackSpec responseForSession(VCSession session) {
     if (session == null) {
       return InteractionApplicationCommandCallbackSpec.builder()
-          .addEmbed(EmbedCreateSpec.builder()
-              .color(BeetsBot.COLOR)
-              .title("Beets Queue")
-              .description("Queue up some beets!")
-              .build())
+          .addEmbed(simpleMessageEmbed("Beets Queue", "Queue up some beets!"))
           .build();
     }
     
     var status = session.getStatus();
     if (status.currentTrack() == null) {
       return InteractionApplicationCommandCallbackSpec.builder()
-          .addEmbed(EmbedCreateSpec.builder()
-              .color(BeetsBot.COLOR)
-              .title("Beets Queue")
-              .description("Queue up some beets!")
-              .timestamp(Instant.now())
-              .build())
+          .addEmbed(simpleMessageEmbed("Beets Queue", "Queue up some beets!"))
           .build();
     }
     
@@ -89,12 +82,7 @@ public class QueueCommand extends CommandBase {
           formatDuration(track.getDuration()), track.getInfo().title));
     }
     return InteractionApplicationCommandCallbackSpec.builder()
-        .addEmbed(EmbedCreateSpec.builder()
-            .color(BeetsBot.COLOR)
-            .title("Beets Queue")
-            .description(joiner.toString())
-            .timestamp(Instant.now())
-            .build())
+        .addEmbed(simpleMessageEmbed("Beets Queue", joiner.toString()))
         .build();
   }
   

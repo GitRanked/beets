@@ -6,7 +6,6 @@ import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.mattmerr.beets.data.Clip;
 import com.mattmerr.beets.data.ClipManager;
 import com.mattmerr.beets.vc.VCManager;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
@@ -41,7 +40,6 @@ public class PlayCommand extends CommandBase {
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
     logCall(event);
-//    event.acknowledgeEphemeral().block();
     String beet = asRequiredString(event.getOption("beet"));
     String guildId = requireGuildId(event.getInteraction()).asString();
 
@@ -51,10 +49,8 @@ public class PlayCommand extends CommandBase {
         if (clipOp.isPresent()) {
           beet = clipOp.get().beet();
         }
-//      } catch (SQLException sqlException) {
-//        log.error("error looking up beet", sqlException);
-      } catch (Exception e) {
-        log.error("error looking up beet", e);
+      } catch (SQLException e) {
+        log.debug("error looking up beet", e);
       }
     }
 

@@ -3,6 +3,8 @@ package com.mattmerr.beets.commands;
 import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
 import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
 import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
+import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
+import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReply;
 import static java.lang.String.format;
 
 import com.google.inject.Inject;
@@ -78,6 +80,9 @@ public class ClipCommand extends CommandBase {
                     .publishOn(Schedulers.newSingle("clip-upsert"))
                     .doOnError(e -> log.error("Error loading clip", e)))
         .doOnError(e -> log.error("Error replying with load failure", e))
-        .onErrorResume(err -> event.reply("Beet does not load! :("));
+        .onErrorResume(
+            err ->
+                event.reply(
+                    wrapEmbedReply(simpleMessageEmbed("Beets Clip", "Could not save that beet!"))));
   }
 }
