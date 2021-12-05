@@ -1,5 +1,9 @@
 package com.mattmerr.beets;
 
+import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
+import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReply;
+import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReplyEphemeral;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
@@ -8,6 +12,7 @@ import com.mattmerr.beets.commands.Command;
 import com.mattmerr.beets.data.SqliteModule;
 import com.mattmerr.beets.util.RepliableEventException;
 import com.mattmerr.beets.vc.VoiceModule;
+import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.ReactiveEventAdapter;
@@ -20,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -69,7 +75,11 @@ public class BeetsBot {
     long applicationId = restClient.getApplicationId().block();
 
     log.info("weee");
-
+    
+//    client.getMessageById(Snowflake.of("channelid"), Snowflake.of("msgid"))
+//        .flatMap(msg -> msg.delete("(hardcoded) Wrong channel!"))
+//        .subscribe(vd -> log.info("Deleted that bad message!"));
+    
     client
         .getGuilds()
         .map(
@@ -84,6 +94,17 @@ public class BeetsBot {
               return guild.getId();
             })
         .blockLast();
+    
+    String allowedChannel = System.getenv("BEETS_ALLOWED_CHANNEL");
+    Set<String> allowedChannels;
+    if (allowedChannel == null || allowedChannel.isEmpty()) {
+      log.warn("NO BEETS_ALLOWED_CHANNEL DEFINED! NO BEETS_ALLOWED_CHANNEL DEFINED!");
+      log.warn("NO BEETS_ALLOWED_CHANNEL DEFINED! NO BEETS_ALLOWED_CHANNEL DEFINED!");
+      log.warn("NO BEETS_ALLOWED_CHANNEL DEFINED! NO BEETS_ALLOWED_CHANNEL DEFINED!");
+      allowedChannels = null;
+    } else {
+      allowedChannels = Set.of(allowedChannel.split(","));
+    }
 
     client
         .on(
@@ -93,6 +114,14 @@ public class BeetsBot {
               @Override
               public Publisher<?> onSlashCommand(@Nonnull SlashCommandEvent event) {
                 log.info("Received event!");
+                String channelId = event.getInteraction().getChannelId().asString();
+                if (allowedChannels != null && !allowedChannels.contains(channelId)) {
+                  log.info("Oops! Someone tried using Beets in wrong channel.");
+                  return event.reply(
+                      wrapEmbedReplyEphemeral(
+                          simpleMessageEmbed("Wrong Channel!", "Please use Beets in #bots")));
+                }
+                log.info("Command: " + event.getCommandName());
                 try {
                   var cmdClass = CommandManager.commandsByName.get(event.getCommandName());
                   return injector
@@ -104,19 +133,20 @@ public class BeetsBot {
                               log.warn("Error running guild command", e);
                             }
                           })
-                      .onErrorResume(e -> {
-                        if (e instanceof RepliableEventException) {
-                          return ((RepliableEventException) e).replyToEvent(event);
-                        }
-                        return Mono.empty();
-                      });
+                      .onErrorResume(
+                          e -> {
+                            if (e instanceof RepliableEventException) {
+                              return ((RepliableEventException) e).replyToEvent(event);
+                            }
+                            return Mono.empty();
+                          });
                 } catch (Exception err) {
                   err.printStackTrace();
                   return Mono.empty();
                 }
               }
             })
-        .doOnError(e -> log.warn("Unable to create guild command", e))
+        .doOnError(e -> log.warn("Error running guild command", e))
         .blockLast();
 
     client.onDisconnect().block();

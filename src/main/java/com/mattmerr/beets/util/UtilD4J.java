@@ -52,4 +52,12 @@ public class UtilD4J {
         .build();
   }
 
+  public static InteractionApplicationCommandCallbackSpec wrapEmbedReplyEphemeral(
+      EmbedCreateSpec spec) {
+    return InteractionApplicationCommandCallbackSpec.builder()
+        .addEmbed(spec)
+        .ephemeral(true)
+        .build();
+  }
+
 }
