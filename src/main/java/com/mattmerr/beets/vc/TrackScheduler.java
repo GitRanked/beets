@@ -5,12 +5,10 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.LinkedBlockingDeque;
 import javax.annotation.CheckReturnValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
 
 /**
  * This class schedules tracks for the audio player. It contains the queue of tracks.
@@ -21,7 +19,7 @@ public class TrackScheduler extends AudioEventAdapter {
   
   private final VCSession session;
   private final AudioPlayer player;
-  private final ArrayBlockingQueue<AudioTrack> queue;
+  private final LinkedBlockingDeque<AudioTrack> queue;
 
   /**
    * @param player The audio player this scheduler uses
@@ -29,7 +27,7 @@ public class TrackScheduler extends AudioEventAdapter {
   public TrackScheduler(VCSession session, AudioPlayer player) {
     this.session = session;
     this.player = player;
-    this.queue = new ArrayBlockingQueue<>(16);
+    this.queue = new LinkedBlockingDeque<>();
   }
 
   /**
@@ -68,6 +66,17 @@ public class TrackScheduler extends AudioEventAdapter {
   
   public void skip() {
     player.stopTrack();
+  }
+  
+  public boolean interject(AudioTrack track) {
+    var playing = this.player.getPlayingTrack();
+    if (playing != null) {
+      var clone = playing.makeClone();
+      clone.setPosition(playing.getPosition());
+      this.queue.addFirst(clone);
+    }
+    // Interrupt and play
+    return this.player.startTrack(track, false);
   }
 
   @Override

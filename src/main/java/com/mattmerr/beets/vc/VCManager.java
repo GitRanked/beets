@@ -79,8 +79,20 @@ public class VCManager {
                                 : "Queued up: ")
                             + beet)
                     : event.reply("Play queue is full!"))
-        .doOnError(e -> log.error("Error trying to play"))
+        .doOnError(e -> log.error("Error trying to play", e))
         .onErrorResume(e -> event.reply("Error trying to play!"));
+  }
+
+  public Mono<Boolean> interject(SlashCommandEvent event, VoiceChannel channel, String beet) {
+    VCSession session = getActiveSession(channel);
+
+    return session
+        .connect()
+        .flatMap(conn -> beetLoader.getTrack(beet))
+        .map(audioTrack -> session.trackScheduler.interject(audioTrack.makeClone()))
+        .doOnError(e -> log.error("Error trying to play", e))
+        //        .onErrorResume(e -> event.reply("Error trying to play!"));
+    ;
   }
 
   public void onDisconnect(Snowflake vcId) {
