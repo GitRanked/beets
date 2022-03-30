@@ -16,6 +16,7 @@ import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.ReactiveEventAdapter;
+import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.rest.RestClient;
 import discord4j.rest.util.Color;
@@ -147,7 +148,37 @@ public class BeetsBot {
               }
             })
         .doOnError(e -> log.warn("Error running guild command", e))
-        .blockLast();
+        .subscribe();
+
+    client.on(
+        ButtonInteractEvent.class,
+        event -> {
+          log.info("Received button: {}", event.getCustomId());
+          try {
+            var cmdClass = CommandManager.buttonsByName.get(event.getCustomId());
+            return injector
+                .getInstance(cmdClass)
+                .execute(event)
+                .doOnError(
+                    e -> {
+                      if (!(e instanceof RepliableEventException)) {
+                        log.warn("Error running guild command", e);
+                      }
+                    })
+                .onErrorResume(
+                    e -> {
+                      if (e instanceof RepliableEventException) {
+                        return ((RepliableEventException) e).replyToEvent(event);
+                      }
+                      return Mono.empty();
+                    });
+          } catch (Exception err) {
+            err.printStackTrace();
+            return Mono.empty();
+          }
+        })
+        .doOnError(e -> log.warn("Error running button command", e))
+        .subscribe();
 
     client.onDisconnect().block();
   }

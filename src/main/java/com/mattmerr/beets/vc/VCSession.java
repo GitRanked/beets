@@ -106,4 +106,12 @@ public class VCSession {
     player.destroy();
     if (stateSub != null) stateSub.dispose();
   }
+
+  public boolean punt() {
+    return this.trackScheduler.punt();
+  }
+
+  public boolean promote(Long index) {
+    return this.trackScheduler.promote(index);
+  }
 }

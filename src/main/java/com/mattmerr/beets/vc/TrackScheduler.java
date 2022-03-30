@@ -79,6 +79,37 @@ public class TrackScheduler extends AudioEventAdapter {
     return this.player.startTrack(track, false);
   }
 
+  public boolean punt() {
+    var playing = this.player.getPlayingTrack();
+    if (playing != null && !this.queue.isEmpty()) {
+      var clone = playing.makeClone();
+      clone.setPosition(playing.getPosition());
+      this.queue.addLast(clone);
+      nextTrack();
+      return true;
+    }
+    return false;
+  }
+
+  public boolean promote(Long index) {
+    if (index == null) {
+      index = (long) this.queue.size();
+    }
+    var playing = this.player.getPlayingTrack();
+    if (playing == null || index == 0 || this.queue.size() < index) {
+      return false;
+    }
+    var clone = playing.makeClone();
+    clone.setPosition(playing.getPosition());
+    this.queue.addFirst(clone);
+    var q = this.getQueue();
+    var toPromote = q.get(index.intValue());
+    this.queue.remove(toPromote);
+    this.queue.addFirst(toPromote);
+    nextTrack();
+    return true;
+    }
+
   @Override
   public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
     // Only start the next track if the end reason is suitable for it (FINISHED or LOAD_FAILED)

@@ -1,8 +1,12 @@
 package com.mattmerr.beets.commands;
 
+import static java.lang.String.format;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.vc.VCManager;
+import discord4j.core.event.domain.interaction.ButtonInteractEvent;
+import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.object.VoiceState;
 import discord4j.core.object.entity.Guild;
@@ -16,7 +20,7 @@ import reactor.core.publisher.Mono;
     options = {}
 )
 @Singleton
-public class StopCommand extends CommandBase {
+public class StopCommand extends CommandBase implements ButtonCommand {
 
   private final VCManager vcManager;
 
@@ -25,8 +29,7 @@ public class StopCommand extends CommandBase {
     this.vcManager = vcManager;
   }
 
-  @Override
-  public Mono<Void> execute(SlashCommandEvent event) {
+  public Mono<Void> execute(InteractionCreateEvent event) {
     logCall(event);
     return event.getInteraction().getGuild().flatMap(
         guild ->
@@ -35,8 +38,18 @@ public class StopCommand extends CommandBase {
         .doOnError(e -> log.error("Error processing Skip", e))
         .onErrorResume(e -> event.reply("Error trying to Skip!"));
   }
+
+  @Override
+  public Mono<Void> execute(ButtonInteractEvent event) {
+    return execute((InteractionCreateEvent) event);
+  }
+
+  @Override
+  public Mono<Void> execute(SlashCommandEvent event) {
+    return execute((InteractionCreateEvent) event);
+  }
   
-  public Mono<Void> executeWithContext(SlashCommandEvent event, Guild guild, VoiceConnection conn) {
+  public Mono<Void> executeWithContext(InteractionCreateEvent event, Guild guild, VoiceConnection conn) {
     return conn.disconnect().then(
         guild.getMemberById(event.getInteraction().getUser().getId())
         .flatMap(PartialMember::getVoiceState)
@@ -44,7 +57,7 @@ public class StopCommand extends CommandBase {
         .map(vcManager::getSessionOrNull)
         .map(session -> {
           session.destroy();
-          return "Stopped";
+          return format("<@%s> Stopped!", event.getInteraction().getUser().getId().asString());
         })).flatMap(event::reply);
   }
 

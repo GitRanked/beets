@@ -13,9 +13,12 @@ import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.object.VoiceState;
+import discord4j.core.object.component.ActionRow;
+import discord4j.core.object.component.Button;
 import discord4j.core.object.component.MessageComponent;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.PartialMember;
+import discord4j.core.object.reaction.ReactionEmoji;
 import discord4j.core.spec.EmbedCreateFields.Field;
 import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
@@ -76,14 +79,27 @@ public class QueueCommand extends CommandBase {
     
     int idx = 1;
     for (AudioTrack track : status.queue()) {
-      joiner.add(format(
-          "%d. (%s) %s",
-          idx++,
-          formatDuration(track.getDuration()), track.getInfo().title));
+      joiner.add(
+          format(
+              "%d. (%s) %s",
+              idx++,
+              track.getPosition() == 0
+                  ? formatDuration(track.getDuration())
+                  : formatSeek(track.getPosition(), track.getDuration()),
+              track.getInfo().title));
     }
     return InteractionApplicationCommandCallbackSpec.builder()
         .addEmbed(simpleMessageEmbed("Beets Queue", joiner.toString()))
+        .addComponent(actionRow())
         .build();
+  }
+  
+  public static ActionRow actionRow() {
+    return ActionRow.of(
+        Button.secondary("cmd:stop", ReactionEmoji.unicode("\u23F9")),
+        Button.secondary("cmd:skip", ReactionEmoji.unicode("\u23ED")),
+        Button.secondary("cmd:punt", ReactionEmoji.unicode("\u21A9")),
+        Button.secondary("cmd:promote", ReactionEmoji.unicode("\u2934")));
   }
   
   public static String formatDuration(long durationMillis) {
