@@ -3,14 +3,17 @@ package com.mattmerr.beets;
 import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
 import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReply;
 import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReplyEphemeral;
+import static java.lang.String.format;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.mattmerr.beets.commands.Command;
+import com.mattmerr.beets.commands.PlayCommand;
 import com.mattmerr.beets.data.SqliteModule;
 import com.mattmerr.beets.util.RepliableEventException;
+import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VoiceModule;
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
@@ -18,15 +21,23 @@ import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
+import discord4j.core.event.domain.message.MessageCreateEvent;
+import discord4j.core.event.domain.message.MessageEvent;
+import discord4j.core.event.domain.message.MessageUpdateEvent;
+import discord4j.core.object.MessageInteraction;
+import discord4j.core.object.entity.Message;
+import discord4j.core.object.entity.User;
 import discord4j.rest.RestClient;
 import discord4j.rest.util.Color;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -63,7 +74,7 @@ public class BeetsBot {
 
                 CommandManager commandManager = new CommandManager();
                 bind(CommandManager.class).toInstance(commandManager);
-                
+
                 install(new VoiceModule());
                 install(new SqliteModule(Path.of(args.length > 1 ? args[1] : "beets.sqlite")));
               }
@@ -76,11 +87,11 @@ public class BeetsBot {
     long applicationId = restClient.getApplicationId().block();
 
     log.info("weee");
-    
-//    client.getMessageById(Snowflake.of("channelid"), Snowflake.of("msgid"))
-//        .flatMap(msg -> msg.delete("(hardcoded) Wrong channel!"))
-//        .subscribe(vd -> log.info("Deleted that bad message!"));
-    
+
+    //    client.getMessageById(Snowflake.of("channelid"), Snowflake.of("msgid"))
+    //        .flatMap(msg -> msg.delete("(hardcoded) Wrong channel!"))
+    //        .subscribe(vd -> log.info("Deleted that bad message!"));
+
     client
         .getGuilds()
         .map(
@@ -95,7 +106,7 @@ public class BeetsBot {
               return guild.getId();
             })
         .blockLast();
-    
+
     String allowedChannel = System.getenv("BEETS_ALLOWED_CHANNEL");
     Set<String> allowedChannels;
     if (allowedChannel == null || allowedChannel.isEmpty()) {
@@ -150,33 +161,90 @@ public class BeetsBot {
         .doOnError(e -> log.warn("Error running guild command", e))
         .subscribe();
 
-    client.on(
-        ButtonInteractEvent.class,
-        event -> {
-          log.info("Received button: {}", event.getCustomId());
-          try {
-            var cmdClass = CommandManager.buttonsByName.get(event.getCustomId());
-            return injector
-                .getInstance(cmdClass)
-                .execute(event)
-                .doOnError(
-                    e -> {
-                      if (!(e instanceof RepliableEventException)) {
-                        log.warn("Error running guild command", e);
-                      }
-                    })
-                .onErrorResume(
-                    e -> {
-                      if (e instanceof RepliableEventException) {
-                        return ((RepliableEventException) e).replyToEvent(event);
-                      }
-                      return Mono.empty();
-                    });
-          } catch (Exception err) {
-            err.printStackTrace();
-            return Mono.empty();
-          }
-        })
+    client
+        .on(
+            new ReactiveEventAdapter() {
+
+              @Override
+              public Publisher<?> onMessageUpdate(MessageUpdateEvent event) {
+                var eventAuthor =
+                    event
+                        .getOld()
+                        .flatMap(oldMsg -> oldMsg.getAuthor())
+                        .map(author -> author.getId().asString());
+
+                if (!(eventAuthor.isPresent()
+                    && (eventAuthor.get().equals("944401438233202728")
+                        || eventAuthor.get().equals("477651428379197469")))) {
+                  return Mono.empty();
+                }
+                return event
+                    .getMessage()
+                    .flatMap(
+                        msg -> {
+                          if (!msg.getEmbeds().stream()
+                              .anyMatch(
+                                  embed ->
+                                      embed
+                                          .getDescription()
+                                          .orElse("")
+                                          .contains("Winner winner chicken dinner!"))) {
+                            return Mono.empty();
+                          }
+
+                          VCManager vcManager = injector.getInstance(VCManager.class);
+                          var winner =
+                              msg.getInteraction()
+                                  .map(MessageInteraction::getUser)
+                                  .map(User::getId);
+
+                          if (winner.isEmpty()) {
+                            return Mono.empty();
+                          }
+
+                          return event
+                              .getGuild()
+                              .flatMap(guild -> guild.getMemberById(winner.get()))
+                              .flatMap(winnerMember -> winnerMember.getVoiceState())
+                              .flatMap(voiceState -> voiceState.getChannel())
+                              .flatMap(
+                                  vc ->
+                                      vcManager.interject(
+                                          null, vc, "https://www.youtube.com/watch?v=TDJUot9OBLc"));
+                        });
+              }
+            })
+        .doOnError(e -> log.warn("Error stalking chickens", e))
+        .subscribe();
+
+    client
+        .on(
+            ButtonInteractEvent.class,
+            event -> {
+              log.info("Received button: {}", event.getCustomId());
+              try {
+                var cmdClass = CommandManager.buttonsByName.get(event.getCustomId());
+                return injector
+                    .getInstance(cmdClass)
+                    .execute(event)
+                    .doOnError(
+                        e -> {
+                          if (!(e instanceof RepliableEventException)) {
+                            log.warn("Error running guild command", e);
+                          }
+                        })
+                    .onErrorResume(
+                        e -> {
+                          if (e instanceof RepliableEventException) {
+                            return ((RepliableEventException) e).replyToEvent(event);
+                          }
+                          return Mono.empty();
+                        });
+              } catch (Exception err) {
+                err.printStackTrace();
+                return Mono.empty();
+              }
+            })
         .doOnError(e -> log.warn("Error running button command", e))
         .subscribe();
 
