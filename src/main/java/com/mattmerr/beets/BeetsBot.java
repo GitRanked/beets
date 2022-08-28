@@ -1,16 +1,15 @@
 package com.mattmerr.beets;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
-import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReply;
 import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReplyEphemeral;
-import static java.lang.String.format;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.mattmerr.beets.commands.Command;
-import com.mattmerr.beets.commands.PlayCommand;
 import com.mattmerr.beets.data.SqliteModule;
 import com.mattmerr.beets.util.RepliableEventException;
 import com.mattmerr.beets.vc.VCManager;
@@ -21,27 +20,25 @@ import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.core.event.domain.message.MessageCreateEvent;
-import discord4j.core.event.domain.message.MessageEvent;
 import discord4j.core.event.domain.message.MessageUpdateEvent;
 import discord4j.core.object.MessageInteraction;
-import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.User;
+import discord4j.core.object.entity.channel.GuildChannel;
 import discord4j.rest.RestClient;
 import discord4j.rest.util.Color;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class BeetsBot {
@@ -109,13 +106,27 @@ public class BeetsBot {
 
     String allowedChannel = System.getenv("BEETS_ALLOWED_CHANNEL");
     Set<String> allowedChannels;
+    Set<String> restrictedGuilds;
     if (allowedChannel == null || allowedChannel.isEmpty()) {
       log.warn("NO BEETS_ALLOWED_CHANNEL DEFINED! NO BEETS_ALLOWED_CHANNEL DEFINED!");
       log.warn("NO BEETS_ALLOWED_CHANNEL DEFINED! NO BEETS_ALLOWED_CHANNEL DEFINED!");
       log.warn("NO BEETS_ALLOWED_CHANNEL DEFINED! NO BEETS_ALLOWED_CHANNEL DEFINED!");
-      allowedChannels = null;
+      allowedChannels = ImmutableSet.of();
+      restrictedGuilds = ImmutableSet.of();
     } else {
-      allowedChannels = Set.of(allowedChannel.split(","));
+      allowedChannels = ImmutableSet.copyOf(allowedChannel.split(","));
+      restrictedGuilds = Flux.fromStream(allowedChannels.stream())
+          .flatMap(channelId -> client.getChannelById(Snowflake.of(channelId)))
+          .filter(channel -> channel instanceof GuildChannel)
+          .map(channel -> ((GuildChannel) channel).getGuild())
+          .filterWhen(guildMaybe -> guildMaybe.hasElement())
+          .flatMap(guild -> guild)
+          .map(guild -> guild.getId().asString())
+          .collect(ImmutableSet.toImmutableSet())
+          .retry(3)
+          .block();
+      assert restrictedGuilds != null;
+      checkNotNull(restrictedGuilds);
     }
 
     client
@@ -127,7 +138,11 @@ public class BeetsBot {
               public Publisher<?> onSlashCommand(@Nonnull SlashCommandEvent event) {
                 log.info("Received event!");
                 String channelId = event.getInteraction().getChannelId().asString();
-                if (allowedChannels != null && !allowedChannels.contains(channelId)) {
+                Optional<String> guildId =
+                    event.getInteraction().getGuildId().map(Snowflake::asString);
+                if (guildId.isPresent()
+                    && restrictedGuilds.contains(guildId.get())
+                    && !allowedChannels.contains(channelId)) {
                   log.info("Oops! Someone tried using Beets in wrong channel.");
                   return event.reply(
                       wrapEmbedReplyEphemeral(
