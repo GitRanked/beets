@@ -5,12 +5,10 @@ COPY . /project
 WORKDIR /project
 RUN mvn clean package -DskipTests
 
-FROM openjdk:16-alpine
-RUN apk add dumb-init
+FROM openjdk:16-slim
+RUN apt-get update
+RUN apt-get install build-essential -y
 RUN mkdir /app
-RUN addgroup --system javauser && adduser -S -s /bin/false -G javauser javauser
 COPY --from=build /project/target/beets-1.0-SNAPSHOT-jar-with-dependencies.jar /app/beets.jar
 WORKDIR /app
-RUN chown -R javauser:javauser /app
-USER javauser
-CMD "dumb-init" "java" "-jar" "beets.jar" "/run/beets_discord_token"
+CMD "java" "-jar" "beets.jar" "/run/beets_discord_token"
