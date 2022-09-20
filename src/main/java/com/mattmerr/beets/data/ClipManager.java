@@ -1,9 +1,6 @@
 package com.mattmerr.beets.data;
 
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.mattmerr.beets.data.SqliteModule.BeetsDB;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
@@ -13,9 +10,7 @@ import java.sql.SQLException;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
 
-@Singleton
 public class ClipManager {
 
   private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -23,8 +18,7 @@ public class ClipManager {
   private final Connection conn;
   private final AudioPlayerManager playerManager;
 
-  @Inject
-  public ClipManager(@BeetsDB Connection conn) {
+  public ClipManager(Connection conn) {
     this.conn = conn;
 
     this.playerManager = new DefaultAudioPlayerManager();

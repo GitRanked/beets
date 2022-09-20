@@ -12,28 +12,30 @@ import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.object.VoiceState;
 import discord4j.core.object.command.Interaction;
 import discord4j.core.object.entity.channel.VoiceChannel;
+
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
-@Singleton
 public class VCManager {
 
   private static final Logger log = LoggerFactory.getLogger(VCManager.class);
 
-  private final ConcurrentHashMap<Snowflake, VCSession> sessionsByVC = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<Snowflake, VCSession> sessionsByVC =
+      new ConcurrentHashMap<>();
   private final GatewayDiscordClient client;
 
   private final AudioPlayerManager playerManager;
   private final CachedBeetLoader beetLoader;
 
-  @Inject
   public VCManager(
-      GatewayDiscordClient client, AudioPlayerManager playerManager, CachedBeetLoader beetLoader) {
+      GatewayDiscordClient client, AudioPlayerManager playerManager,
+      CachedBeetLoader beetLoader) {
     this.client = client;
     this.playerManager = playerManager;
     this.beetLoader = beetLoader;
@@ -43,7 +45,8 @@ public class VCManager {
     return interaction
         .getMember()
         .map(member -> member.getVoiceState().flatMap(VoiceState::getChannel))
-        .orElseGet(() -> error(new IllegalArgumentException("Event missing interaction member?")));
+        .orElseGet(() -> error(
+            new IllegalArgumentException("Event missing interaction member?")));
   }
 
   public VCSession getActiveSession(VoiceChannel vc) {
@@ -51,7 +54,8 @@ public class VCManager {
         vc.getId(), key -> new VCSession(this, client, vc, playerManager));
   }
 
-  public Mono<VCSession> getActiveSessionForInteraction(Interaction interaction) {
+  public Mono<VCSession> getActiveSessionForInteraction(
+      Interaction interaction) {
     return getChannelForInteraction(interaction).map(this::getActiveSession);
   }
 
@@ -60,11 +64,13 @@ public class VCManager {
         vc.getId(), key -> new VCSession(this, client, vc, playerManager));
   }
 
-  public Mono<VCSession> getSessionOrNullForInteraction(Interaction interaction) {
+  public Mono<VCSession> getSessionOrNullForInteraction(
+      Interaction interaction) {
     return getChannelForInteraction(interaction).map(this::getSessionOrNull);
   }
 
-  public Mono<Void> enqueue(SlashCommandEvent event, VoiceChannel channel, String beet) {
+  public Mono<Void> enqueue(SlashCommandEvent event, VoiceChannel channel,
+                            String beet) {
     VCSession session = getActiveSession(channel);
 
     return session
@@ -74,25 +80,27 @@ public class VCManager {
             audioTrack ->
                 session.trackScheduler.enqueue(audioTrack.makeClone())
                     ? event.reply(
-                        (session.getStatus().queue().isEmpty()
-                                ? "Now playing: "
-                                : "Queued up: ")
-                            + beet)
+                    (session.getStatus().queue().isEmpty()
+                         ? "Now playing: "
+                         : "Queued up: ")
+                        + beet)
                     : event.reply("Play queue is full!"))
         .doOnError(e -> log.error("Error trying to play", e))
         .onErrorResume(e -> event.reply("Error trying to play!"));
   }
 
-  public Mono<Boolean> interject(SlashCommandEvent event, VoiceChannel channel, String beet) {
+  public Mono<Boolean> interject(SlashCommandEvent event, VoiceChannel channel,
+                                 String beet) {
     VCSession session = getActiveSession(channel);
 
     return session
         .connect()
         .flatMap(conn -> beetLoader.getTrack(beet))
-        .map(audioTrack -> session.trackScheduler.interject(audioTrack.makeClone()))
+        .map(audioTrack -> session.trackScheduler.interject(
+            audioTrack.makeClone()))
         .doOnError(e -> log.error("Error trying to play", e))
         //        .onErrorResume(e -> event.reply("Error trying to play!"));
-    ;
+        ;
   }
 
   public void onDisconnect(Snowflake vcId) {

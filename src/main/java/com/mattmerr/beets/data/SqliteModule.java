@@ -1,39 +1,28 @@
 package com.mattmerr.beets.data;
 
-import static java.lang.String.format;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.BindingAnnotation;
-import com.google.inject.Singleton;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@Singleton
-public class SqliteModule extends AbstractModule {
+import static java.lang.String.format;
+
+public class SqliteModule {
 
   private final Logger log = LoggerFactory.getLogger(SqliteModule.class);
   private final Path dbPath;
+  public final Connection conn;
 
   public SqliteModule(Path dbPath) {
     this.dbPath = dbPath;
-  }
-
-  @BindingAnnotation
-  @Retention(RetentionPolicy.RUNTIME)
-  public @interface BeetsDB {}
-
-  @Override
-  protected void configure() {
     try {
       Class.forName("org.sqlite.JDBC");
-      Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath.toString());
+      Connection conn =
+          DriverManager.getConnection("jdbc:sqlite:" + dbPath.toString());
       Statement statement = conn.createStatement();
       tryExecute(
           statement,
@@ -46,12 +35,9 @@ public class SqliteModule extends AbstractModule {
               + " create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,"
               + " PRIMARY KEY (guild, name)"
               + ")");
-
-      bind(Connection.class).annotatedWith(BeetsDB.class).toInstance(conn);
-
-      // do not close conn
+      this.conn = conn;
     } catch (SQLException | ClassNotFoundException e) {
-      e.printStackTrace();
+      throw new RuntimeException(e);
     }
   }
 

@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono;
 public class PingCommand extends CommandBase {
 
     @Inject
-    PingCommand() {}
+    public PingCommand() {}
     
     @Override
     public Mono<Void> execute(SlashCommandEvent event) {
