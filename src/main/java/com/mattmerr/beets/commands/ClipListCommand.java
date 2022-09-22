@@ -1,6 +1,7 @@
 package com.mattmerr.beets.commands;
 
 import static com.mattmerr.beets.util.UtilD4J.asLong;
+import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -8,6 +9,7 @@ import com.mattmerr.beets.BeetsBot;
 import com.mattmerr.beets.commands.CommandDesc.Option;
 import com.mattmerr.beets.data.Clip;
 import com.mattmerr.beets.data.ClipManager;
+import com.mattmerr.beets.util.RepliableEventException;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
@@ -39,25 +41,23 @@ public class ClipListCommand extends CommandBase {
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
     long page = asLong(event.getOption("page")).orElse(0L);
-    var guildMono = event.getInteraction().getGuild();
-    return guildMono
-        .map(
-            guild -> {
-              try {
-                var clips = clipMgr.enumerateClips(guild.getId().asString(), page);
-                return clips.isEmpty() ? buildResponse("No clips found!") : buildResponse(clips);
-              } catch (SQLException sqlException) {
-                log.error("Error enumerating clips", sqlException);
-                return buildResponse("Could not retrieve any clips!");
-              }
-            })
-        .flatMap(
-            embed ->
-                event.reply(
-                    InteractionApplicationCommandCallbackSpec.builder()
-                        .allowedMentions(AllowedMentions.suppressAll())
-                        .addEmbed(embed)
-                        .build()));
+    var guildId = event.getInteraction().getGuildId().orElseThrow(
+        RepliableEventException.MissingGuildException::new);
+    EmbedCreateSpec embed;
+    try {
+      var clips = clipMgr.enumerateClips(guildId.asString(), page);
+      embed = clips.isEmpty()
+          ? buildResponse("No clips found!")
+          : buildResponse(clips);
+    } catch (SQLException sqlException) {
+      log.error("Error enumerating clips", sqlException);
+      embed = buildResponse("Error! Could not retrieve any clips.");
+    }
+    return event.reply(
+      InteractionApplicationCommandCallbackSpec.builder()
+          .allowedMentions(AllowedMentions.suppressAll())
+          .addEmbed(embed)
+          .build());
   }
 
   private EmbedCreateSpec buildResponse(String message) {

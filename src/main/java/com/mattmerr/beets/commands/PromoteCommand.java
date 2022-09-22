@@ -6,6 +6,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.commands.CommandDesc.Option;
 import com.mattmerr.beets.vc.VCManager;
+import com.mattmerr.beets.vc.VCSession;
 import discord4j.core.event.domain.Event;
 import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
@@ -38,25 +39,16 @@ public class PromoteCommand extends CommandBase implements ButtonCommand {
 
   public Mono<Void> execute(InteractionCreateEvent event, Long index) {
     logCall(event);
-
-    return vcManager
-        .getChannelForInteraction(event.getInteraction())
-        .map(vcManager::getSessionOrNull)
-        .flatMap(
-            session -> {
-              if (session == null || session.getStatus().currentTrack() == null || session.getQueuedTracks().isEmpty()) {
-                return event.reply("Nothing to punt!");
-              }
-              if (session.promote(index)) {
-                return event.reply(
-                    format("<@%s> Promoted!", event.getInteraction().getUser().getId().asString()));
-              } else {
-                return event.reply(
-                    format("<@%s> Couldn't find that track!", event.getInteraction().getUser().getId().asString()));
-              }
-            })
-        .doOnError(e -> log.error("Error processing Punt", e))
-        .onErrorResume(e -> event.reply("Error trying to Punt!"));
+    VCSession session = vcManager.pollSession(event);
+    if (session.getTrackScheduler().promote(index)) {
+      return event.reply(
+          format("<@%s> Promoted!", event.getInteraction().getUser().getId().asString()));
+    } else {
+      return event.reply(
+          format("<@%s> Can't promote index %d!",
+                 event.getInteraction().getUser().getId().asString(),
+                 index));
+    }
   }
 
   @Override

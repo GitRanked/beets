@@ -64,8 +64,12 @@ public class TrackScheduler extends AudioEventAdapter {
     player.startTrack(nextTrack, false);
   }
   
-  public void skip() {
+  public synchronized boolean skip() {
+    if (player.getPlayingTrack() == null) {
+      return false;
+    }
     player.stopTrack();
+    return true;
   }
   
   public boolean interject(AudioTrack track) {

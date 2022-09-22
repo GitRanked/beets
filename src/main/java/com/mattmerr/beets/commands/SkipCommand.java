@@ -5,6 +5,7 @@ import static java.lang.String.format;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.vc.VCManager;
+import com.mattmerr.beets.vc.VCSession;
 import discord4j.core.event.domain.Event;
 import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
@@ -29,21 +30,12 @@ public class SkipCommand extends CommandBase implements ButtonCommand {
   
   public Mono<Void> execute(InteractionCreateEvent event) {
     logCall(event);
-
-    return vcManager
-        .getChannelForInteraction(event.getInteraction())
-        .map(vcManager::getSessionOrNull)
-        .flatMap(
-            session -> {
-              if (session == null || session.getStatus().currentTrack() == null) {
-                return event.reply("Nothing to skip!");
-              }
-              session.skip();
-              return event.reply(
-                  format("<@%s> Skipped!", event.getInteraction().getUser().getId().asString()));
-            })
-        .doOnError(e -> log.error("Error processing Skip", e))
-        .onErrorResume(e -> event.reply("Error trying to Skip!"));
+    VCSession session = vcManager.pollSession(event);
+    if (!session.getTrackScheduler().skip()) {
+      return event.reply("Nothing to skip!");
+    }
+    String userIdString = event.getInteraction().getUser().getId().asString();
+    return event.reply(format("<@%s> Skipped!", userIdString));
   }
 
   @Override

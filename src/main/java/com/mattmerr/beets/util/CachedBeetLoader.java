@@ -3,23 +3,26 @@ package com.mattmerr.beets.util;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.inject.Inject;
+import com.mattmerr.beets.util.RepliableEventException.SimpleMessageException;
 import com.mattmerr.beets.vc.CompletableAudioLoader;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
+
+import java.time.Duration;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 public class CachedBeetLoader {
 
-  private final Logger log = LoggerFactory.getLogger(this.getClass());
-  private final AudioPlayerManager playerManager;
+  private static final Logger log =
+      LoggerFactory.getLogger(CachedBeetLoader.class);
 
-  private Cache<String, Mono<AudioTrack>> audioTrack =
+  private static final String UNABLE_TO_LOAD = "Unable to load beet!";
+
+  private final AudioPlayerManager playerManager;
+  private final Cache<String, AudioTrack> audioTrack =
       CacheBuilder.newBuilder().maximumSize(64).expireAfterWrite(Duration.ofDays(7)).build();
 
   @Inject
@@ -27,23 +30,34 @@ public class CachedBeetLoader {
     this.playerManager = playerManager;
   }
 
-  public Mono<AudioTrack> fetchTrack(String beet) {
-    return Mono.just(new CompletableAudioLoader(beet))
-        .flatMap(
-            audioLoader -> {
-              this.playerManager.loadItem(beet, audioLoader);
-              return Mono.fromFuture(audioLoader);
-            })
-        .retryWhen(Retry.fixedDelay(3, Duration.of(1, ChronoUnit.SECONDS)))
-        .cache();
+  private synchronized AudioTrack fetchTrack(String beet) {
+    for (int retry = 0; retry < 3; retry++) {
+      try {
+        var audioLoader = new CompletableAudioLoader(beet);
+        this.playerManager.loadItem(beet, audioLoader);
+        return audioLoader.join();
+      } catch (CompletionException ce) {
+        try {
+          log.error("Caught error! Retrying soon...");
+          Thread.sleep(Duration.ofSeconds(1));
+        } catch (InterruptedException e) {
+          log.error("Interrupted while loading?");
+          throw new SimpleMessageException(UNABLE_TO_LOAD);
+        }
+      }
+    }
+    throw new SimpleMessageException(UNABLE_TO_LOAD);
   }
 
-  public Mono<AudioTrack> getTrack(String beet) {
+  public synchronized AudioTrack getTrack(String beet) {
     try {
-      return audioTrack.get(beet, () -> this.fetchTrack(beet));
+      return audioTrack.get(beet, () -> this.fetchTrack(beet)).makeClone();
     } catch (ExecutionException e) {
+      if (e.getCause() instanceof RepliableEventException ree) {
+        throw ree;
+      }
       log.error("Error while loading beet", e);
-      throw new RuntimeException(e);
+      throw new SimpleMessageException(UNABLE_TO_LOAD);
     }
   }
 }

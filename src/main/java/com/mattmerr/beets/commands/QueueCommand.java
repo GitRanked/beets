@@ -49,12 +49,7 @@ public class QueueCommand extends CommandBase {
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
     logCall(event);
-    return vcManager
-        .getSessionOrNullForInteraction(event.getInteraction())
-        .map(QueueCommand::responseForSession)
-        .flatMap(event::reply)
-        .doOnError(e -> log.error("Error processing Play", e))
-        .onErrorResume(e -> event.reply("Error trying to Play!"));
+    return event.reply(responseForSession(vcManager.peekSession(event)));
   }
   
   public static InteractionApplicationCommandCallbackSpec responseForSession(VCSession session) {

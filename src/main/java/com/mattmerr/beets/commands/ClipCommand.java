@@ -1,23 +1,22 @@
 package com.mattmerr.beets.commands;
 
-import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
-import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
-import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
-import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
-import static com.mattmerr.beets.util.UtilD4J.wrapEmbedReply;
-import static java.lang.String.format;
-
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.data.Clip;
 import com.mattmerr.beets.data.ClipManager;
 import com.mattmerr.beets.util.CachedBeetLoader;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.rest.util.ApplicationCommandOptionType;
+import reactor.core.publisher.Mono;
+
 import java.sql.SQLException;
 import java.util.Locale;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+
+import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
+import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
+import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
+import static java.lang.String.format;
 
 @CommandDesc(
     name = "clip",
@@ -55,34 +54,29 @@ public class ClipCommand extends CommandBase {
     if (!VALID_CLIP_NAME.matcher(clipName).matches()) {
       return event.reply("Invalid clip name! Clips must be 3-20 letters.");
     }
-
-    return upsertClip(event, guildId, clipName, clipBeet);
+    AudioTrack audioTrack;
+    try {
+      audioTrack = beetLoader.getTrack(clipBeet);
+      assert audioTrack != null;
+    } catch (Exception e) {
+      log.error("Failed to load beet", e);
+      return event.reply("Could not validate beet!");
+    }
+    if (upsertClip(guildId, clipName, clipBeet, audioTrack.getInfo().title)) {
+      return event.reply(format("Saved clip \"%s\"!", clipName));
+    } else {
+      return event.reply("Could not save clip :(");
+    }
   }
 
-  private Mono<Void> upsertClip(
-      SlashCommandEvent event, String guild, String clipName, String clipBeet) {
-
-    return beetLoader
-        .getTrack(clipBeet)
-        .flatMap(
-            audioTrack ->
-                Mono.defer(
-                        () -> {
-                          try {
-                            clipMgr.upsertClip(
-                                new Clip(guild, clipName, clipBeet, audioTrack.getInfo().title));
-                            return event.reply(format("Saved clip \"%s\"!", clipName));
-                          } catch (SQLException sqlException) {
-                            log.error("Could not save clip", sqlException);
-                            return event.reply("Could not save clip :(");
-                          }
-                        })
-                    .publishOn(Schedulers.newSingle("clip-upsert"))
-                    .doOnError(e -> log.error("Error loading clip", e)))
-        .doOnError(e -> log.error("Error replying with load failure", e))
-        .onErrorResume(
-            err ->
-                event.reply(
-                    wrapEmbedReply(simpleMessageEmbed("Beets Clip", "Could not save that beet!"))));
+  private boolean upsertClip(String guild, String clipName, String clipBeet, String title) {
+    try {
+      clipMgr.upsertClip(
+          new Clip(guild, clipName, clipBeet, title));
+      return true;
+    } catch (SQLException sqlException) {
+      log.error("Could not save clip", sqlException);
+      return false;
+    }
   }
 }

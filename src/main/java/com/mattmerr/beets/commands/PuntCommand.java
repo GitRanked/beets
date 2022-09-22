@@ -5,6 +5,7 @@ import static java.lang.String.format;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.vc.VCManager;
+import com.mattmerr.beets.vc.VCSession;
 import discord4j.core.event.domain.Event;
 import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
@@ -30,24 +31,14 @@ public class PuntCommand extends CommandBase implements ButtonCommand {
   public Mono<Void> execute(InteractionCreateEvent event) {
     logCall(event);
 
-    return vcManager
-        .getChannelForInteraction(event.getInteraction())
-        .map(vcManager::getSessionOrNull)
-        .flatMap(
-            session -> {
-              if (session == null || session.getStatus().currentTrack() == null || session.getQueuedTracks().isEmpty()) {
-                return event.reply("Nothing to punt!");
-              }
-              if (session.punt()) {
-                return event.reply(
-                    format("<@%s> Punted!", event.getInteraction().getUser().getId().asString()));
-              } else {
-                return event.reply(
-                    format("<@%s> Nothing to punt to!", event.getInteraction().getUser().getId().asString()));
-              }
-            })
-        .doOnError(e -> log.error("Error processing Punt", e))
-        .onErrorResume(e -> event.reply("Error trying to Punt!"));
+    VCSession session = vcManager.pollSession(event);
+    if (session.getTrackScheduler().punt()) {
+      return event.reply(
+          format("<@%s> Punted!", event.getInteraction().getUser().getId().asString()));
+    } else {
+      return event.reply(
+          format("<@%s> Cannot punt right now!", event.getInteraction().getUser().getId().asString()));
+    }
   }
 
   @Override
