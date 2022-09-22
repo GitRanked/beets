@@ -4,3 +4,4 @@ target/
 *.iml
 beets.sqlite
 prod.secret
+beets_channels.sh
