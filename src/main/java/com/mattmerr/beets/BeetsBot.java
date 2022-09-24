@@ -5,8 +5,8 @@ import com.mattmerr.beets.commands.CommandManager;
 import com.mattmerr.beets.data.ClipManager;
 import com.mattmerr.beets.data.SqliteModule;
 import com.mattmerr.beets.util.CachedBeetLoader;
-import com.mattmerr.beets.util.RepliableEventException;
-import com.mattmerr.beets.util.RepliableEventException.MissingGuildException;
+import com.mattmerr.beets.util.MissingGuildException;
+import com.mattmerr.beets.util.RepliableMessageException;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
@@ -20,9 +20,7 @@ import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.event.domain.message.MessageUpdateEvent;
 import discord4j.core.object.MessageInteraction;
-import discord4j.core.object.VoiceState;
 import discord4j.core.object.entity.Message;
-import discord4j.core.object.entity.PartialMember;
 import discord4j.core.object.entity.User;
 import discord4j.rest.util.Color;
 import org.slf4j.Logger;
@@ -60,7 +58,7 @@ public class BeetsBot {
         .setFrameBufferFactory(NonAllocatingAudioFrameBuffer::new);
     AudioSourceManagers.registerRemoteSources(playerManager);
     this.beetLoader = new CachedBeetLoader(playerManager);
-    this.vcManager = new VCManager(client, playerManager, beetLoader);
+    this.vcManager = new VCManager(client, playerManager);
 
     var sqliteMod =
         new SqliteModule(Path.of(args.length > 1 ? args[1] : "beets.sqlite"));
@@ -128,7 +126,7 @@ public class BeetsBot {
       log.info("Command: {}", event.getCommandName());
       var handler = cmd.commandsByName.get(event.getCommandName());
       handler.execute(event).block();
-    } catch (RepliableEventException e) {
+    } catch (RepliableMessageException e) {
       e.replyToEvent(event).block();
     } catch (Exception err) {
       log.warn("Error running button command", err);
@@ -140,7 +138,7 @@ public class BeetsBot {
     var handler = cmd.buttonsByName.get(event.getCustomId());
     try {
       handler.execute(event).block();
-    } catch (RepliableEventException e) {
+    } catch (RepliableMessageException e) {
       e.replyToEvent(event).block();
     } catch (Exception err) {
       log.warn("Error running button command", err);
@@ -183,7 +181,10 @@ public class BeetsBot {
   static <T> Consumer<T> inFiber(Consumer<T> consumer) {
     return (T t) -> Thread.ofVirtual()
         .name("beets-cmd-", 0)
-        .start(() -> consumer.accept(t));
+        .start(() -> consumer.accept(t))
+        .setUncaughtExceptionHandler((t1, e) -> {
+          log.error("Uncaught error in fiber", e);
+        });
   }
 
 

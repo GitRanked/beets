@@ -1,35 +1,22 @@
 package com.mattmerr.beets.commands;
 
-import static com.mattmerr.beets.util.UtilD4J.beetsEmbedBuilder;
-import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
-import static java.lang.String.format;
-import static java.lang.String.join;
-
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.mattmerr.beets.BeetsBot;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.core.object.VoiceState;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
-import discord4j.core.object.component.MessageComponent;
-import discord4j.core.object.entity.Message;
-import discord4j.core.object.entity.PartialMember;
 import discord4j.core.object.reaction.ReactionEmoji;
-import discord4j.core.spec.EmbedCreateFields.Field;
-import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.util.StringJoiner;
-import java.util.concurrent.TimeUnit;
 import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.util.StringJoiner;
+
+import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
+import static java.lang.String.format;
 
 @CommandDesc(
     name = "queue",
@@ -59,7 +46,7 @@ public class QueueCommand extends CommandBase {
           .build();
     }
     
-    var status = session.getStatus();
+    var status = session.getTrackScheduler().getStatus();
     if (status.currentTrack() == null) {
       return InteractionApplicationCommandCallbackSpec.builder()
           .addEmbed(simpleMessageEmbed("Beets Queue", "Queue up some beets!"))

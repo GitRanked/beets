@@ -1,10 +1,6 @@
 package com.mattmerr.beets.vc;
 
-import com.mattmerr.beets.util.CachedBeetLoader;
-import com.mattmerr.beets.util.RepliableEventException;
-import com.mattmerr.beets.util.RepliableEventException.MissingGuildException;
-import com.mattmerr.beets.util.RepliableEventException.NoCurrentSessionException;
-import com.mattmerr.beets.util.RepliableEventException.SimpleMessageException;
+import com.mattmerr.beets.util.*;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
@@ -23,19 +19,15 @@ public class VCManager {
 
   private static final Logger log = LoggerFactory.getLogger(VCManager.class);
 
+  private final GatewayDiscordClient client;
+  private final AudioPlayerManager playerManager;
   private final ConcurrentHashMap<Snowflake, VCSession> sessionsByGuild =
       new ConcurrentHashMap<>();
-  private final GatewayDiscordClient client;
 
-  private final AudioPlayerManager playerManager;
-  private final CachedBeetLoader beetLoader;
-
-  public VCManager(
-      GatewayDiscordClient client, AudioPlayerManager playerManager,
-      CachedBeetLoader beetLoader) {
+  public VCManager(GatewayDiscordClient client,
+                   AudioPlayerManager playerManager) {
     this.client = client;
     this.playerManager = playerManager;
-    this.beetLoader = beetLoader;
   }
 
   public VCSession findOrCreateSession(InteractionCreateEvent event) {
@@ -49,7 +41,7 @@ public class VCManager {
     Snowflake vcId = member.getVoiceState()
         .map(VoiceState::getChannelId)
         .block()
-        .orElseThrow(RepliableEventException.NotInVoiceChatException::new);
+        .orElseThrow(NotInVoiceChatException::new);
     return findOrCreateSession(guildId, vcId);
   }
 
@@ -62,7 +54,7 @@ public class VCManager {
         return new VCSession(this, client, vcId, playerManager);
       }
       if (!sess.getVoiceChannelId().equals(vcId)) {
-        throw new SimpleMessageException("Beets is already playing!");
+        throw new SessionInDifferentVCException();
       }
       return sess;
     });
@@ -100,6 +92,11 @@ public class VCManager {
       throw new NoCurrentSessionException();
     }
     return session;
+  }
+
+  public Snowflake vcIdForMember(Member member) {
+    return member.getVoiceState().block().getChannelId()
+        .orElseThrow(NotInVoiceChatException::new);
   }
 
 //  public Mono<Void> enqueue(SlashCommandEvent event, VoiceChannel channel,

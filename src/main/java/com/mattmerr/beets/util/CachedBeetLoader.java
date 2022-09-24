@@ -3,7 +3,6 @@ package com.mattmerr.beets.util;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.inject.Inject;
-import com.mattmerr.beets.util.RepliableEventException.SimpleMessageException;
 import com.mattmerr.beets.vc.CompletableAudioLoader;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
@@ -42,22 +41,22 @@ public class CachedBeetLoader {
           Thread.sleep(Duration.ofSeconds(1));
         } catch (InterruptedException e) {
           log.error("Interrupted while loading?");
-          throw new SimpleMessageException(UNABLE_TO_LOAD);
+          throw new RepliableMessageException(UNABLE_TO_LOAD);
         }
       }
     }
-    throw new SimpleMessageException(UNABLE_TO_LOAD);
+    throw new RepliableMessageException(UNABLE_TO_LOAD);
   }
 
   public synchronized AudioTrack getTrack(String beet) {
     try {
       return audioTrack.get(beet, () -> this.fetchTrack(beet)).makeClone();
     } catch (ExecutionException e) {
-      if (e.getCause() instanceof RepliableEventException ree) {
+      if (e.getCause() instanceof RepliableMessageException ree) {
         throw ree;
       }
       log.error("Error while loading beet", e);
-      throw new SimpleMessageException(UNABLE_TO_LOAD);
+      throw new RepliableMessageException(UNABLE_TO_LOAD);
     }
   }
 }

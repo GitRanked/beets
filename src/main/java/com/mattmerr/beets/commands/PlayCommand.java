@@ -4,16 +4,22 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.data.ClipManager;
 import com.mattmerr.beets.util.CachedBeetLoader;
+import com.mattmerr.beets.util.RepliableMessageException;
+import com.mattmerr.beets.util.SessionInDifferentVCException;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import discord4j.common.util.Snowflake;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
+import discord4j.core.object.entity.channel.VoiceChannel;
 import discord4j.rest.util.ApplicationCommandOptionType;
 import reactor.core.publisher.Mono;
 
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
 import static com.mattmerr.beets.util.UtilD4J.*;
@@ -53,14 +59,15 @@ public class PlayCommand extends CommandBase {
   public Mono<Void> execute(SlashCommandEvent event) {
     logCall(event);
     String beet = asRequiredString(event.getOption("beet"));
-    String guildId = requireGuildId(event.getInteraction()).asString();
+    Snowflake guildId = requireGuildId(event.getInteraction());
     var delayMinutes = asLong(event.getOption("delay"));
     if (delayMinutes.isPresent() && (delayMinutes.get() < 1 || delayMinutes.get() > 120)) {
-      event.reply("Delay must be in range [1, 120] minutes");
+      return event.reply("Delay must be in range [1, 120] minutes");
     }
     if (VALID_CLIP_NAME.matcher(beet.toLowerCase(Locale.ROOT)).matches()) {
       try {
-        var clipOp = clipMgr.selectClip(guildId, beet.toLowerCase(Locale.ROOT));
+        var clipOp = clipMgr.selectClip(guildId.asString(),
+                                        beet.toLowerCase(Locale.ROOT));
         if (clipOp.isPresent()) {
           beet = clipOp.get().beet();
         }
@@ -69,19 +76,41 @@ public class PlayCommand extends CommandBase {
       }
     }
     AudioTrack track = beetLoader.getTrack(beet);
-    VCSession session = vcManager.findOrCreateSession(event);
+    final var beetCapture = beet;
     if (delayMinutes.isPresent()) {
-      Thread.ofVirtual().start(() -> {
-        try {
-          Thread.sleep(Duration.ofMinutes(delayMinutes.get()));
-          session.connect();
-          session.getTrackScheduler().interject(track);
-        } catch (InterruptedException e) {
-          log.error("Who woke me up I was sleeping", e);
-        }
-      });
+      Thread.ofVirtual()
+          .start(() -> {
+            try {
+              Thread.sleep(Duration.ofMinutes(delayMinutes.get()));
+              VCSession session = vcManager.findOrCreateSession(event);
+              session.connect();
+              session.getTrackScheduler().interject(track);
+              // Interaction tokens are only valid for 15 minutes
+              if (delayMinutes.get() < 15) {
+                event.getInteractionResponse()
+                    .createFollowupMessage("Now playing: " + beetCapture)
+                    .block();
+              }
+            } catch (InterruptedException e) {
+              log.error("Who woke me up I was sleeping", e);
+            } catch (RepliableMessageException e) {
+              event.getInteractionResponse()
+                  .createFollowupMessage(e.getReplyMessage())
+                  .block();
+            }
+            log.debug("Completed PlayCommand delayed by {} minutes",
+                      delayMinutes.get());
+          })
+          .setUncaughtExceptionHandler(
+              (t, e) -> {
+                log.error("Uncaught error from PlayCommand delay fiber", e);
+                event.getInteractionResponse()
+                    .createFollowupMessage("There was an error playing your delayed beet :(")
+                    .block();
+              });
       return event.reply(format("Will wait %d minutes and play: %s", delayMinutes.get(), beet));
     }
+    VCSession session = vcManager.findOrCreateSession(event);
     session.connect();
     if (!session.getTrackScheduler().enqueue(track)) {
       return event.reply("Queue is full! Cannot play.");
@@ -91,5 +120,4 @@ public class PlayCommand extends CommandBase {
     }
     return event.reply("Added to queue: " + beet);
   }
-
 }

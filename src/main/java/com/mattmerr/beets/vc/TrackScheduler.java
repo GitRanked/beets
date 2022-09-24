@@ -1,14 +1,17 @@
 package com.mattmerr.beets.vc;
 
 import com.google.common.collect.ImmutableList;
+import com.mattmerr.beets.data.PlayStatus;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
-import java.util.concurrent.LinkedBlockingDeque;
-import javax.annotation.CheckReturnValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.CheckReturnValue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class schedules tracks for the audio player. It contains the queue of tracks.
@@ -28,6 +31,18 @@ public class TrackScheduler extends AudioEventAdapter {
     this.session = session;
     this.player = player;
     this.queue = new LinkedBlockingDeque<>();
+  }
+
+  public synchronized PlayStatus getStatus() {
+    return new PlayStatus(player.getPlayingTrack(), getQueue());
+  }
+
+  public synchronized void writeStatus(PlayStatus playStatus) {
+    if (playStatus.currentTrack() != null) {
+      player.startTrack(playStatus.currentTrack().makeClone(), false);
+    }
+    queue.clear();
+    queue.addAll(playStatus.queue());
   }
 
   /**
@@ -56,12 +71,19 @@ public class TrackScheduler extends AudioEventAdapter {
   private void nextTrack() {
     // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
     // giving null to startTrack, which is a valid argument and will simply stop the player.
-    AudioTrack nextTrack = queue.poll();
-    if (nextTrack == null) {
-      log.info("No next item!");
+    try {
+      AudioTrack nextTrack = queue.pollFirst(5, TimeUnit.MINUTES);
+      if (nextTrack == null) {
+        log.info("No next item!");
+        session.disconnect();
+      }
+      player.startTrack(nextTrack, false);
+    } catch (InterruptedException interruptedException) {
+      log.error(
+          "Error waiting for next track in " + session.getVoiceChannelId(),
+          interruptedException);
       session.disconnect();
     }
-    player.startTrack(nextTrack, false);
   }
   
   public synchronized boolean skip() {

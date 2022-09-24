@@ -37,6 +37,7 @@ public class CommandManager {
         new QueueCommand(vcManager),
         new SkipCommand(vcManager),
         new StopCommand(vcManager),
+        new YoinkCommand(vcManager),
         new ClipCommand(clipManager, beetLoader),
         new ClipListCommand(clipManager),
         new PuntCommand(vcManager),
@@ -97,28 +98,34 @@ public class CommandManager {
 
   public void register() {
     long appId = this.client.getApplicationId().block();
-    List<Thread> fibers = new ArrayList<>();
-    for (var guild : client.getGuilds().collectList().block()) {
-      fibers.add(
-          Thread.startVirtualThread(
-              () -> registerInGuild(appId, guild.id().asLong())));
-    }
-    try {
-      for (Thread fiber : fibers) {
-        fiber.join();
-      }
-    } catch (InterruptedException e) {
-      log.error("Interrupted registering guild commads", e);
-    }
-  }
-
-  public void registerInGuild(long appId, long guildId) {
+//    List<Thread> fibers = new ArrayList<>();
+//    for (var guild : client.getGuilds().collectList().block()) {
+//      fibers.add(
+//          Thread.startVirtualThread(
+//              () -> registerInGuild(appId, guild.id().asLong())));
+//    }
+//    try {
+//      for (Thread fiber : fibers) {
+//        fiber.join();
+//      }
+//
+//    } catch (InterruptedException e) {
+//      log.error("Interrupted registering guild commads", e);
+//    }
     this.client.getApplicationService()
-        .bulkOverwriteGuildApplicationCommand(appId,
-                                              guildId,
-                                              commandRequests)
+        .bulkOverwriteGlobalApplicationCommand(appId, commandRequests)
         .doOnError(e -> log.warn("Unable to create guild command", e))
         .onErrorResume(e -> Mono.empty())
         .blockLast();
   }
+
+//  public void registerInGuild(long appId, long guildId) {
+//    this.client.getApplicationService()
+//        .bulkOverwriteGuildApplicationCommand(appId,
+//                                              guildId,
+//                                              commandRequests)
+//        .doOnError(e -> log.warn("Unable to create guild command", e))
+//        .onErrorResume(e -> Mono.empty())
+//        .blockLast();
+//  }
 }

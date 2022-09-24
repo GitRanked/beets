@@ -21,7 +21,7 @@ public class VCSession {
 
   private final VCManager manager;
 
-  private final VoiceChannel vc;
+  private VoiceChannel vc;
   private final AudioPlayer player;
   private final LavaPlayerAudioProvider provider;
   private final TrackScheduler trackScheduler;
@@ -75,8 +75,14 @@ public class VCSession {
                 });
   }
 
-  public synchronized PlayStatus getStatus() {
-    return new PlayStatus(player.getPlayingTrack(), trackScheduler.getQueue());
+  public synchronized void moveTo(Snowflake vc) {
+    this.vc = (VoiceChannel) this.vc.getClient().getChannelById(vc).block();
+    conn = null;
+    if (stateSub != null && !stateSub.isDisposed()) {
+      stateSub.dispose();
+      stateSub = null;
+    }
+    connect();
   }
 
   public synchronized void disconnect() {
@@ -92,6 +98,9 @@ public class VCSession {
   public synchronized void destroy() {
     conn = null;
     player.destroy();
-    if (stateSub != null && !stateSub.isDisposed()) stateSub.dispose();
+    if (stateSub != null && !stateSub.isDisposed()) {
+      stateSub.dispose();
+      stateSub = null;
+    }
   }
 }

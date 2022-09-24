@@ -1,22 +1,22 @@
 package com.mattmerr.beets.commands;
 
-import static com.mattmerr.beets.util.UtilD4J.asLong;
-import static com.mattmerr.beets.util.UtilD4J.simpleMessageEmbed;
-
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.BeetsBot;
 import com.mattmerr.beets.commands.CommandDesc.Option;
 import com.mattmerr.beets.data.Clip;
 import com.mattmerr.beets.data.ClipManager;
-import com.mattmerr.beets.util.RepliableEventException;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import discord4j.rest.util.AllowedMentions;
 import discord4j.rest.util.ApplicationCommandOptionType;
-import java.sql.SQLException;
 import reactor.core.publisher.Mono;
+
+import java.sql.SQLException;
+
+import static com.mattmerr.beets.util.UtilD4J.asLong;
+import static com.mattmerr.beets.util.UtilD4J.getGuildOrThrow;
 
 @CommandDesc(
     name = "clips",
@@ -41,8 +41,7 @@ public class ClipListCommand extends CommandBase {
   @Override
   public Mono<Void> execute(SlashCommandEvent event) {
     long page = asLong(event.getOption("page")).orElse(0L);
-    var guildId = event.getInteraction().getGuildId().orElseThrow(
-        RepliableEventException.MissingGuildException::new);
+    var guildId = getGuildOrThrow(event);
     EmbedCreateSpec embed;
     try {
       var clips = clipMgr.enumerateClips(guildId.asString(), page);

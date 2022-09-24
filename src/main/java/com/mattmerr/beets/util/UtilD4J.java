@@ -1,14 +1,14 @@
 package com.mattmerr.beets.util;
 
 import com.mattmerr.beets.BeetsBot;
-import com.mattmerr.beets.util.RepliableEventException.MissingGuildException;
 import discord4j.common.util.Snowflake;
+import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.Interaction;
+import discord4j.core.object.entity.Member;
 import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
-import java.time.Instant;
 import java.util.Optional;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -58,6 +58,18 @@ public class UtilD4J {
         .addEmbed(spec)
         .ephemeral(true)
         .build();
+  }
+
+  public static Member getMemberOrThrow(InteractionCreateEvent event) {
+    return event.getInteraction()
+        .getMember()
+        .orElseThrow(MissingGuildException::new);
+  }
+
+  public static Snowflake getGuildOrThrow(InteractionCreateEvent event) {
+    return event.getInteraction()
+        .getGuildId()
+        .orElseThrow(MissingGuildException::new);
   }
 
 }
