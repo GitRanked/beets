@@ -6,6 +6,7 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
+import discord4j.common.util.Snowflake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,16 +20,20 @@ import java.util.concurrent.TimeUnit;
 public class TrackScheduler extends AudioEventAdapter {
   
   private static final Logger log = LoggerFactory.getLogger(TrackScheduler.class);
-  
-  private final VCSession session;
+
   private final AudioPlayer player;
   private final LinkedBlockingDeque<AudioTrack> queue;
+  private final VCManager manager;
+  private final Snowflake guildId;
+  private final Snowflake vcId;
 
   /**
    * @param player The audio player this scheduler uses
    */
-  public TrackScheduler(VCSession session, AudioPlayer player) {
-    this.session = session;
+  public TrackScheduler(VCManager manager, Snowflake guildId, Snowflake vcId, AudioPlayer player) {
+    this.manager = manager;
+    this.guildId = guildId;
+    this.vcId = vcId;
     this.player = player;
     this.queue = new LinkedBlockingDeque<>();
   }
@@ -72,17 +77,17 @@ public class TrackScheduler extends AudioEventAdapter {
     // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
     // giving null to startTrack, which is a valid argument and will simply stop the player.
     try {
-      AudioTrack nextTrack = queue.pollFirst(5, TimeUnit.MINUTES);
+      AudioTrack nextTrack = queue.pollFirst(5, TimeUnit.SECONDS);
       if (nextTrack == null) {
         log.info("No next item!");
-        session.disconnect();
+        manager.disconnectFrom(guildId);
       }
       player.startTrack(nextTrack, false);
     } catch (InterruptedException interruptedException) {
       log.error(
-          "Error waiting for next track in " + session.getVoiceChannelId(),
+          "Error waiting for next track in " + vcId,
           interruptedException);
-      session.disconnect();
+      manager.disconnectFrom(guildId);
     }
   }
   
@@ -141,7 +146,7 @@ public class TrackScheduler extends AudioEventAdapter {
     // Only start the next track if the end reason is suitable for it (FINISHED or LOAD_FAILED)
     log.info("Track ended: " + endReason);
     if (endReason.mayStartNext || (endReason == AudioTrackEndReason.STOPPED)) {
-      nextTrack();
+      Thread.ofVirtual().start(this::nextTrack).setUncaughtExceptionHandler((t, e) -> log.error("error with next track", e));
     }
   }
 }

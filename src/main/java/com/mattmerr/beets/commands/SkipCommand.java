@@ -1,18 +1,15 @@
 package com.mattmerr.beets.commands;
 
-import static java.lang.String.format;
-
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
-import discord4j.core.event.domain.Event;
 import discord4j.core.event.domain.interaction.ButtonInteractEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
-import java.awt.Button;
 import reactor.core.publisher.Mono;
+
+import static java.lang.String.format;
 
 @CommandDesc(
     name = "skip",

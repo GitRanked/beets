@@ -7,8 +7,10 @@ import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import discord4j.core.object.VoiceState;
 import discord4j.core.object.entity.Member;
+import discord4j.voice.VoiceConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,7 +53,7 @@ public class VCManager {
     checkNotNull(vcId);
     return sessionsByGuild.compute(guildId, (g, sess) -> {
       if (sess == null) {
-        return new VCSession(this, client, vcId, playerManager);
+        return new VCSession(this, client, guildId, vcId, playerManager);
       }
       if (!sess.getVoiceChannelId().equals(vcId)) {
         throw new SessionInDifferentVCException();
@@ -136,7 +138,26 @@ public class VCManager {
     log.info("Disconnected from " + guildId);
     VCSession session = sessionsByGuild.remove(guildId);
     if (session != null) {
+      log.info("Destroying session");
       session.destroy();
     }
+  }
+
+  public Disposable registerStateListener(VoiceConnection conn) {
+    return conn.stateEvents().subscribe(state -> {
+      log.info(state.name());
+      if (state == VoiceConnection.State.DISCONNECTED) {
+        onDisconnect(conn.getGuildId());
+      }
+    });
+  }
+
+  public void disconnectFrom(Snowflake guildId) {
+    client.getGuildById(guildId)
+        .block()
+        .getVoiceConnection()
+        .block()
+        .disconnect()
+        .block();
   }
 }

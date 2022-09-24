@@ -16,7 +16,7 @@ import reactor.core.scheduler.Schedulers;
 
 public class VCSession {
 
-  private static final Logger log = LoggerFactory.getLogger(VCManager.class);
+  private static final Logger log = LoggerFactory.getLogger(VCSession.class);
   private static final Scheduler pool = Schedulers.newParallel("vcsession", 2); 
 
   private final VCManager manager;
@@ -32,6 +32,7 @@ public class VCSession {
   public VCSession(
       VCManager manager,
       GatewayDiscordClient client,
+      Snowflake guildId,
       Snowflake vcId,
       AudioPlayerManager playerManager) {
     this.manager = manager;
@@ -40,7 +41,7 @@ public class VCSession {
     this.player.setVolume(30);
 
     this.provider = new LavaPlayerAudioProvider(this.player);
-    this.trackScheduler = new TrackScheduler(this, this.player);
+    this.trackScheduler = new TrackScheduler(manager, guildId, vcId, player);
     this.player.addListener(this.trackScheduler);
 
     log.info("Session created for " + vcId);
@@ -58,21 +59,11 @@ public class VCSession {
     if (conn != null) {
       return;
     }
-    VoiceConnection voiceConnection =
-        vc.join(VoiceChannelJoinSpec.builder().provider(provider).build())
-            .block();
-    assert voiceConnection != null;
-    log.info("Connected to voice in guild {}", voiceConnection.getGuildId());
-    stateSub =
-        voiceConnection
-            .stateEvents()
-            .subscribe(
-                state -> {
-                  log.info(state.name());
-                  if (state == VoiceConnection.State.DISCONNECTED) {
-                    manager.onDisconnect(vc.getGuildId());
-                  }
-                });
+    conn = vc.join(VoiceChannelJoinSpec.builder().provider(provider).build())
+        .block();
+    assert conn != null;
+    log.info("Connected to voice in guild {}", conn.getGuildId());
+    stateSub = manager.registerStateListener(conn);
   }
 
   public synchronized void moveTo(Snowflake vc) {
