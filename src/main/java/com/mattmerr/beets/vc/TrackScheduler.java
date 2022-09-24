@@ -74,10 +74,8 @@ public class TrackScheduler extends AudioEventAdapter {
    * Start the next track, stopping the current one if it is playing.
    */
   private void nextTrack() {
-    // Start the next track, regardless of if something is already playing or not. In case queue was empty, we are
-    // giving null to startTrack, which is a valid argument and will simply stop the player.
     try {
-      AudioTrack nextTrack = queue.pollFirst(5, TimeUnit.SECONDS);
+      AudioTrack nextTrack = queue.pollFirst(15, TimeUnit.MINUTES);
       if (nextTrack == null) {
         log.info("No next item!");
         manager.disconnectFrom(guildId);
