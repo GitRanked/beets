@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.mattmerr.beets.data.PlayStatus;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
+import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import discord4j.common.util.Snowflake;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.CheckReturnValue;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +33,8 @@ public class TrackScheduler extends AudioEventAdapter {
   private final Snowflake guildId;
   private final Snowflake vcId;
 
+  private String previousThrowingTrack;
+  private Instant previousThrowInstant;
   private int retries;
 
   /**
@@ -154,19 +158,34 @@ public class TrackScheduler extends AudioEventAdapter {
   }
 
   @Override
+  public void onTrackException(AudioPlayer player, AudioTrack track,
+                               FriendlyException exception) {
+    if (!track.getInfo().uri.equals(previousThrowingTrack)
+        || previousThrowInstant.plus(Duration.ofMinutes(5))
+        .isBefore(Instant.now())) {
+      previousThrowingTrack = track.getInfo().uri;
+      previousThrowInstant = Instant.now();
+      retries = 0;
+    }
+    if (retries >= 3) {
+      previousThrowingTrack = null;
+      previousThrowInstant = null;
+      retries = 0;
+      log.error("Failed three times");
+      return;
+    }
+    AudioTrack clone = track.makeClone();
+    clone.setPosition(track.getPosition());
+    queue.addFirst(clone);
+    retries += 1;
+    log.error("Reattempting track! {}/3", retries);
+  }
+
+  @Override
   public void onTrackEnd(AudioPlayer player, AudioTrack track,
                          AudioTrackEndReason endReason) {
     // Only start the next track if the end reason is suitable for it (FINISHED or LOAD_FAILED)
     log.info("Track ended: " + endReason);
-    if (endReason == AudioTrackEndReason.LOAD_FAILED && retries < 3) {
-      log.error("LOAD FAILED! Trying again.");
-      AudioTrack clone = track.makeClone();
-      clone.setPosition(track.getPosition());
-      queue.addFirst(clone);
-      retries += 1;
-    } else {
-      retries = 0;
-    }
     if (endReason.mayStartNext || (endReason == AudioTrackEndReason.STOPPED)) {
       Thread.ofVirtual()
           .start(this::nextTrack)
