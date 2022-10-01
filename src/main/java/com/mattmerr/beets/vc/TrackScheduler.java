@@ -23,7 +23,7 @@ public class TrackScheduler extends AudioEventAdapter {
   private static final Logger log =
       LoggerFactory.getLogger(TrackScheduler.class);
 
-  private final Duration STICK_AROUND_DURATION = Duration.ofMinutes(1);
+  private final Duration STICK_AROUND_DURATION = Duration.ofMinutes(15);
 
   private final AudioPlayer player;
   private final LinkedBlockingDeque<AudioTrack> queue;
