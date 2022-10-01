@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.CheckReturnValue;
+import java.time.Duration;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
@@ -18,8 +19,11 @@ import java.util.concurrent.TimeUnit;
  * This class schedules tracks for the audio player. It contains the queue of tracks.
  */
 public class TrackScheduler extends AudioEventAdapter {
-  
-  private static final Logger log = LoggerFactory.getLogger(TrackScheduler.class);
+
+  private static final Logger log =
+      LoggerFactory.getLogger(TrackScheduler.class);
+
+  private final Duration STICK_AROUND_DURATION = Duration.ofMinutes(1);
 
   private final AudioPlayer player;
   private final LinkedBlockingDeque<AudioTrack> queue;
@@ -30,12 +34,14 @@ public class TrackScheduler extends AudioEventAdapter {
   /**
    * @param player The audio player this scheduler uses
    */
-  public TrackScheduler(VCManager manager, Snowflake guildId, Snowflake vcId, AudioPlayer player) {
+  public TrackScheduler(VCManager manager, Snowflake guildId, Snowflake vcId,
+                        AudioPlayer player) {
     this.manager = manager;
     this.guildId = guildId;
     this.vcId = vcId;
     this.player = player;
     this.queue = new LinkedBlockingDeque<>();
+    Thread.ofVirtual().name("TrackScheduler").start(this::nextTrack);
   }
 
   public synchronized PlayStatus getStatus() {
@@ -51,21 +57,15 @@ public class TrackScheduler extends AudioEventAdapter {
   }
 
   /**
-   * Add the next track to queue or play right away if nothing is in the queue.
+   * Add the next track to queue
    *
    * @param track The track to play or add to queue.
    */
   @CheckReturnValue
   public boolean enqueue(AudioTrack track) {
-    // Calling startTrack with the noInterrupt set to true will start the track only if nothing is currently playing. If
-    // something is playing, it returns false and does nothing. In that case the player was already playing so this
-    // track goes to the queue instead.
-    if (!player.startTrack(track, true)) {
-      return queue.offer(track);
-    }
-    return true;
+    return queue.offer(track);
   }
-  
+
   public ImmutableList<AudioTrack> getQueue() {
     return ImmutableList.copyOf(queue);
   }
@@ -75,8 +75,13 @@ public class TrackScheduler extends AudioEventAdapter {
    */
   private void nextTrack() {
     try {
-      AudioTrack nextTrack = queue.pollFirst(15, TimeUnit.MINUTES);
+      AudioTrack nextTrack =
+          queue.pollFirst(STICK_AROUND_DURATION.getSeconds(), TimeUnit.SECONDS);
       if (nextTrack == null) {
+        if (player.getPlayingTrack() != null) {
+          log.warn("There's something playing?? Race condition??");
+          return;
+        }
         log.info("No next item!");
         manager.disconnectFrom(guildId);
       }
@@ -88,7 +93,7 @@ public class TrackScheduler extends AudioEventAdapter {
       manager.disconnectFrom(guildId);
     }
   }
-  
+
   public synchronized boolean skip() {
     if (player.getPlayingTrack() == null) {
       return false;
@@ -96,7 +101,7 @@ public class TrackScheduler extends AudioEventAdapter {
     player.stopTrack();
     return true;
   }
-  
+
   public boolean interject(AudioTrack track) {
     var playing = this.player.getPlayingTrack();
     if (playing != null) {
@@ -137,14 +142,23 @@ public class TrackScheduler extends AudioEventAdapter {
     this.queue.addFirst(toPromote);
     nextTrack();
     return true;
-    }
+  }
 
   @Override
-  public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
+  public void onTrackStart(AudioPlayer player, AudioTrack track) {
+    super.onTrackStart(player, track);
+  }
+
+  @Override
+  public void onTrackEnd(AudioPlayer player, AudioTrack track,
+                         AudioTrackEndReason endReason) {
     // Only start the next track if the end reason is suitable for it (FINISHED or LOAD_FAILED)
     log.info("Track ended: " + endReason);
     if (endReason.mayStartNext || (endReason == AudioTrackEndReason.STOPPED)) {
-      Thread.ofVirtual().start(this::nextTrack).setUncaughtExceptionHandler((t, e) -> log.error("error with next track", e));
+      Thread.ofVirtual()
+          .start(this::nextTrack)
+          .setUncaughtExceptionHandler(
+              (t, e) -> log.error("error with next track", e));
     }
   }
 }
