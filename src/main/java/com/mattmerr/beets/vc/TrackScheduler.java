@@ -31,6 +31,8 @@ public class TrackScheduler extends AudioEventAdapter {
   private final Snowflake guildId;
   private final Snowflake vcId;
 
+  private int retries;
+
   /**
    * @param player The audio player this scheduler uses
    */
@@ -41,7 +43,9 @@ public class TrackScheduler extends AudioEventAdapter {
     this.vcId = vcId;
     this.player = player;
     this.queue = new LinkedBlockingDeque<>();
-    Thread.ofVirtual().name("TrackScheduler").start(this::nextTrack);
+    Thread.ofVirtual().name("TrackScheduler").start(this::nextTrack)
+        .setUncaughtExceptionHandler(
+            (t, e) -> log.error("error with initial track fiber", e));
   }
 
   public synchronized PlayStatus getStatus() {
@@ -154,6 +158,15 @@ public class TrackScheduler extends AudioEventAdapter {
                          AudioTrackEndReason endReason) {
     // Only start the next track if the end reason is suitable for it (FINISHED or LOAD_FAILED)
     log.info("Track ended: " + endReason);
+    if (endReason == AudioTrackEndReason.LOAD_FAILED && retries < 3) {
+      log.error("LOAD FAILED! Trying again.");
+      AudioTrack clone = track.makeClone();
+      clone.setPosition(track.getPosition());
+      queue.addFirst(clone);
+      retries += 1;
+    } else {
+      retries = 0;
+    }
     if (endReason.mayStartNext || (endReason == AudioTrackEndReason.STOPPED)) {
       Thread.ofVirtual()
           .start(this::nextTrack)

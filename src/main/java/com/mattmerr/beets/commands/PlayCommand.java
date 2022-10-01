@@ -5,21 +5,17 @@ import com.google.inject.Singleton;
 import com.mattmerr.beets.data.ClipManager;
 import com.mattmerr.beets.util.CachedBeetLoader;
 import com.mattmerr.beets.util.RepliableMessageException;
-import com.mattmerr.beets.util.SessionInDifferentVCException;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.common.util.Snowflake;
 import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.core.object.entity.channel.VoiceChannel;
 import discord4j.rest.util.ApplicationCommandOptionType;
 import reactor.core.publisher.Mono;
 
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Locale;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
 import static com.mattmerr.beets.util.UtilD4J.*;
