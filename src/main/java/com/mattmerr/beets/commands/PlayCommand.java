@@ -32,7 +32,7 @@ import static java.lang.String.format;
             type = ApplicationCommandOptionType.STRING,
             required = true),
         @CommandDesc.Option(
-            name = "multiqueue",
+            name = "all",
             description = "queue all beets from a playlist?",
             type = ApplicationCommandOptionType.BOOLEAN,
             required = false),
@@ -63,14 +63,12 @@ public class PlayCommand extends CommandBase {
     String beet = asRequiredString(event.getOption("beet"));
     Snowflake guildId = requireGuildId(event.getInteraction());
 
-    var multiqueue = asBoolean(event.getOption("multiqueue")).orElse(false);
+    var queueAll = asBoolean(event.getOption("all")).orElse(false);
     var delayMinutes = asLong(event.getOption("delay"));
-    if (delayMinutes.isPresent()) {
-      if (delayMinutes.get() < 1 || delayMinutes.get() > 120) {
-        return event.reply("Delay must be in range [1, 120] minutes");
-      } else if (multiqueue) {
-        return event.reply("You cannot enable multiqueue and delay at the same time");
-      }
+    if (delayMinutes.isPresent() && (delayMinutes.get() < 1 || delayMinutes.get() > 120)) {
+      return event.reply("Delay must be in range [1, 120] minutes");
+    } else if (delayMinutes.isPresent() && queueAll) {
+      return event.reply("You cannot enable multiqueue and delay at the same time");
     }
 
     if (VALID_CLIP_NAME.matcher(beet.toLowerCase(Locale.ROOT)).matches()) {
@@ -85,10 +83,9 @@ public class PlayCommand extends CommandBase {
       }
     }
 
-    List<AudioTrack> tracks = beetLoader.getTracks(beet, multiqueue);
     final var beetCapture = beet;
     if (delayMinutes.isPresent()) {
-      AudioTrack track = tracks.iterator().next(); // Cannot multiqueue and delay, so this will always have 1 element.
+      AudioTrack track = beetLoader.getTrack(beet); // Cannot multiqueue and delay, so this will always have 1 track.
       Thread.ofVirtual()
           .start(() -> {
             try {
@@ -124,6 +121,8 @@ public class PlayCommand extends CommandBase {
 
     VCSession session = vcManager.findOrCreateSession(event);
     session.connect();
+
+    List<AudioTrack> tracks = beetLoader.getTracks(beet, queueAll);
     for (int i = 0; i < tracks.size(); i++) {
       AudioTrack track = tracks.get(i);
       if (!session.getTrackScheduler().enqueue(track)) {
