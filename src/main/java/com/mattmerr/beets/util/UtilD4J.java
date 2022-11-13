@@ -31,6 +31,12 @@ public class UtilD4J {
         .flatMap(ApplicationCommandInteractionOption::getValue)
         .map(ApplicationCommandInteractionOptionValue::asLong);
   }
+
+  public static Optional<Boolean> asBoolean(Optional<ApplicationCommandInteractionOption> option) {
+    return option
+            .flatMap(ApplicationCommandInteractionOption::getValue)
+            .map(ApplicationCommandInteractionOptionValue::asBoolean);
+  }
   
   public static Snowflake requireGuildId(Interaction interaction) {
     return interaction.getGuildId().orElseThrow(MissingGuildException::new);
