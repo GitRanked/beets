@@ -15,6 +15,7 @@ import reactor.core.publisher.Mono;
 
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 
 import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
@@ -30,6 +31,11 @@ import static java.lang.String.format;
             description = "where's the beet?",
             type = ApplicationCommandOptionType.STRING,
             required = true),
+        @CommandDesc.Option(
+            name = "all",
+            description = "queue all beets from a playlist?",
+            type = ApplicationCommandOptionType.BOOLEAN,
+            required = false),
         @CommandDesc.Option(
             name = "delay",
             description = "delays playback, in minutes",
@@ -56,10 +62,15 @@ public class PlayCommand extends CommandBase {
     logCall(event);
     String beet = asRequiredString(event.getOption("beet"));
     Snowflake guildId = requireGuildId(event.getInteraction());
+
+    var queueAll = asBoolean(event.getOption("all")).orElse(false);
     var delayMinutes = asLong(event.getOption("delay"));
     if (delayMinutes.isPresent() && (delayMinutes.get() < 1 || delayMinutes.get() > 120)) {
       return event.reply("Delay must be in range [1, 120] minutes");
+    } else if (delayMinutes.isPresent() && queueAll) {
+      return event.reply("You cannot enable multiqueue and delay at the same time");
     }
+
     if (VALID_CLIP_NAME.matcher(beet.toLowerCase(Locale.ROOT)).matches()) {
       try {
         var clipOp = clipMgr.selectClip(guildId.asString(),
@@ -71,9 +82,10 @@ public class PlayCommand extends CommandBase {
         log.error("Error looking up beet by name", e);
       }
     }
-    AudioTrack track = beetLoader.getTrack(beet);
+
     final var beetCapture = beet;
     if (delayMinutes.isPresent()) {
+      AudioTrack track = beetLoader.getTrack(beet); // Cannot multiqueue and delay, so this will always have 1 track.
       Thread.ofVirtual()
           .start(() -> {
             try {
@@ -106,11 +118,22 @@ public class PlayCommand extends CommandBase {
               });
       return event.reply(format("Will wait %d minutes and play: %s", delayMinutes.get(), beet));
     }
+
     VCSession session = vcManager.findOrCreateSession(event);
     session.connect();
-    if (!session.getTrackScheduler().enqueue(track)) {
-      return event.reply("Queue is full! Cannot play.");
+
+    List<AudioTrack> tracks = beetLoader.getTracks(beet, queueAll);
+    for (int i = 0; i < tracks.size(); i++) {
+      AudioTrack track = tracks.get(i);
+      if (!session.getTrackScheduler().enqueue(track)) {
+        if (i == 0) {
+          return event.reply("Queue is full! Cannot add any new tracks.");
+        } else {
+          return event.reply("Queue is now full! Could not add all tracks in playlist.");
+        }
+      }
     }
+
     if (session.getTrackScheduler().getQueue().isEmpty()) {
       return event.reply("Now playing: " + beet);
     }
