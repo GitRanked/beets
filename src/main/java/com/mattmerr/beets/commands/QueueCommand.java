@@ -78,10 +78,10 @@ public class QueueCommand extends CommandBase {
   
   public static ActionRow actionRow() {
     return ActionRow.of(
-        Button.secondary("cmd:stop", ReactionEmoji.unicode("\u23F9")),
-        Button.secondary("cmd:skip", ReactionEmoji.unicode("\u23ED")),
-        Button.secondary("cmd:punt", ReactionEmoji.unicode("\u21A9")),
-        Button.secondary("cmd:promote", ReactionEmoji.unicode("\u2934")));
+        Button.secondary("cmd:stop", ReactionEmoji.unicode("\u23F9"), "Stop"),
+        Button.secondary("cmd:skip", ReactionEmoji.unicode("\u23ED"), "Skip"),
+        Button.secondary("cmd:punt", ReactionEmoji.unicode("\u21A9"), "Punt"),
+        Button.secondary("cmd:promote", ReactionEmoji.unicode("\u2934"), "Promote"));
   }
   
   public static String formatDuration(long durationMillis) {
