@@ -5,7 +5,7 @@ import com.google.inject.Singleton;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
 import discord4j.core.object.reaction.ReactionEmoji;
@@ -34,7 +34,7 @@ public class QueueCommand extends CommandBase {
   }
 
   @Override
-  public Mono<Void> execute(SlashCommandEvent event) {
+  public Mono<Void> execute(ChatInputInteractionEvent event) {
     logCall(event);
     return event.reply(responseForSession(vcManager.peekSession(event)));
   }

@@ -1,5 +1,6 @@
 package com.mattmerr.beets.util;
 
+import discord4j.core.event.domain.interaction.DeferrableInteractionEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
 import reactor.core.publisher.Mono;
 
@@ -15,7 +16,7 @@ public class RepliableMessageException extends RuntimeException {
     return msg;
   }
 
-  public final Mono<Void> replyToEvent(InteractionCreateEvent event) {
+  public final Mono<Void> replyToEvent(DeferrableInteractionEvent event) {
     return event.reply(getReplyMessage());
   }
 }

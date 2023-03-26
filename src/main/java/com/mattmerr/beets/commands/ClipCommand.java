@@ -1,22 +1,21 @@
 package com.mattmerr.beets.commands;
 
+import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
+import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
+import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
+import static java.lang.String.format;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.data.Clip;
 import com.mattmerr.beets.data.ClipManager;
 import com.mattmerr.beets.util.CachedBeetLoader;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.rest.util.ApplicationCommandOptionType;
-import reactor.core.publisher.Mono;
-
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.object.command.ApplicationCommandOption;
 import java.sql.SQLException;
 import java.util.Locale;
-
-import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
-import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
-import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
-import static java.lang.String.format;
+import reactor.core.publisher.Mono;
 
 @CommandDesc(
     name = "clip",
@@ -25,12 +24,12 @@ import static java.lang.String.format;
       @CommandDesc.Option(
           name = "name",
           description = "What's the beet?",
-          type = ApplicationCommandOptionType.STRING,
+          type = ApplicationCommandOption.Type.STRING,
           required = true),
       @CommandDesc.Option(
           name = "beet",
           description = "where's the beet?",
-          type = ApplicationCommandOptionType.STRING,
+          type = ApplicationCommandOption.Type.STRING,
           required = true),
     })
 @Singleton
@@ -46,7 +45,7 @@ public class ClipCommand extends CommandBase {
   }
 
   @Override
-  public Mono<Void> execute(SlashCommandEvent event) {
+  public Mono<Void> execute(ChatInputInteractionEvent event) {
     var clipName = asRequiredString(event.getOption("name")).toLowerCase(Locale.ROOT);
     var clipBeet = asRequiredString(event.getOption("beet"));
     var guildId = requireGuildId(event.getInteraction()).asString();

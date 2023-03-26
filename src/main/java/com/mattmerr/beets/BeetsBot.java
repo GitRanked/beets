@@ -16,8 +16,8 @@ import com.sedmelluq.discord.lavaplayer.track.playback.NonAllocatingAudioFrameBu
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
-import discord4j.core.event.domain.interaction.ButtonInteractEvent;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
+import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.event.domain.message.MessageUpdateEvent;
 import discord4j.core.object.MessageInteraction;
 import discord4j.core.object.entity.Message;
@@ -107,16 +107,16 @@ public class BeetsBot {
         .block();
   }
 
-  void onSlashCommand(@Nonnull SlashCommandEvent event) {
+  void onSlashCommand(@Nonnull ChatInputInteractionEvent event) {
     try {
-      log.debug("received SlashCommandEvent");
+      log.debug("received ChatInputInteractionEvent");
       String channelId = event.getInteraction().getChannelId().asString();
       String guildId =
           event.getInteraction().getGuildId().map(Snowflake::asString)
               .orElseThrow(MissingGuildException::new);
       if (allowed.restrictedGuilds.contains(guildId)
           && !allowed.allowedChannels.contains(channelId)) {
-        log.debug("discarding invalid channel for SlashCommandEvent");
+        log.debug("discarding invalid channel for ChatInputInteractionEvent");
         event.reply(wrapEmbedReplyEphemeral(
                 simpleMessageEmbed("Wrong Channel!",
                                    "You may not use beets in this channel.")))
@@ -133,7 +133,7 @@ public class BeetsBot {
     }
   }
 
-  void onButtonInteract(ButtonInteractEvent event) {
+  void onButtonInteract(ButtonInteractionEvent event) {
     log.info("Received button: {}", event.getCustomId());
     var handler = cmd.buttonsByName.get(event.getCustomId());
     try {
@@ -160,11 +160,11 @@ public class BeetsBot {
           DiscordClientBuilder.create(args[0]).build().login().block();
       var beets = new BeetsBot(client, args);
 
-      client.on(SlashCommandEvent.class)
+      client.on(ChatInputInteractionEvent.class)
           .subscribe(inFiber(beets::onSlashCommand));
       client.on(MessageUpdateEvent.class)
           .subscribe(inFiber(beets::onMessageUpdate));
-      client.on(ButtonInteractEvent.class)
+      client.on(ButtonInteractionEvent.class)
           .subscribe(inFiber(beets::onButtonInteract));
 
       Thread.ofVirtual()

@@ -1,5 +1,12 @@
 package com.mattmerr.beets.commands;
 
+import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
+import static com.mattmerr.beets.util.UtilD4J.asBoolean;
+import static com.mattmerr.beets.util.UtilD4J.asLong;
+import static com.mattmerr.beets.util.UtilD4J.asRequiredString;
+import static com.mattmerr.beets.util.UtilD4J.requireGuildId;
+import static java.lang.String.format;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.data.ClipManager;
@@ -9,18 +16,13 @@ import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.common.util.Snowflake;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
-import discord4j.rest.util.ApplicationCommandOptionType;
-import reactor.core.publisher.Mono;
-
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.object.command.ApplicationCommandOption;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
-
-import static com.mattmerr.beets.data.Clip.VALID_CLIP_NAME;
-import static com.mattmerr.beets.util.UtilD4J.*;
-import static java.lang.String.format;
+import reactor.core.publisher.Mono;
 
 @CommandDesc(
     name = "play",
@@ -29,17 +31,17 @@ import static java.lang.String.format;
         @CommandDesc.Option(
             name = "beet",
             description = "where's the beet?",
-            type = ApplicationCommandOptionType.STRING,
+            type = ApplicationCommandOption.Type.STRING,
             required = true),
         @CommandDesc.Option(
             name = "all",
             description = "queue all beets from a playlist?",
-            type = ApplicationCommandOptionType.BOOLEAN,
+            type = ApplicationCommandOption.Type.BOOLEAN,
             required = false),
         @CommandDesc.Option(
             name = "delay",
             description = "delays playback, in minutes",
-            type = ApplicationCommandOptionType.INTEGER,
+            type = ApplicationCommandOption.Type.INTEGER,
             required = false),
     }
 )
@@ -58,7 +60,7 @@ public class PlayCommand extends CommandBase {
   }
 
   @Override
-  public Mono<Void> execute(SlashCommandEvent event) {
+  public Mono<Void> execute(ChatInputInteractionEvent event) {
     logCall(event);
     String beet = asRequiredString(event.getOption("beet"));
     Snowflake guildId = requireGuildId(event.getInteraction());

@@ -4,7 +4,6 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

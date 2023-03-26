@@ -101,7 +101,7 @@ public class VCManager {
         .orElseThrow(NotInVoiceChatException::new);
   }
 
-//  public Mono<Void> enqueue(SlashCommandEvent event, VoiceChannel channel,
+//  public Mono<Void> enqueue(ChatInputInteractionEvent event, VoiceChannel channel,
 //                            String beet) {
 //    VCSession session = findOrCreateSession(channel);
 //    return session
@@ -120,7 +120,7 @@ public class VCManager {
 //        .onErrorResume(e -> event.reply("Error trying to play!"));
 //  }
 //
-//  public Mono<Boolean> interject(SlashCommandEvent event, VoiceChannel channel,
+//  public Mono<Boolean> interject(ChatInputInteractionEvent event, VoiceChannel channel,
 //                                 String beet) {
 //    VCSession session = getActiveSession(channel);
 //

@@ -1,22 +1,21 @@
 package com.mattmerr.beets.commands;
 
+import static com.mattmerr.beets.util.UtilD4J.asLong;
+import static com.mattmerr.beets.util.UtilD4J.getGuildOrThrow;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.mattmerr.beets.BeetsBot;
 import com.mattmerr.beets.commands.CommandDesc.Option;
 import com.mattmerr.beets.data.Clip;
 import com.mattmerr.beets.data.ClipManager;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import discord4j.rest.util.AllowedMentions;
-import discord4j.rest.util.ApplicationCommandOptionType;
-import reactor.core.publisher.Mono;
-
 import java.sql.SQLException;
-
-import static com.mattmerr.beets.util.UtilD4J.asLong;
-import static com.mattmerr.beets.util.UtilD4J.getGuildOrThrow;
+import reactor.core.publisher.Mono;
 
 @CommandDesc(
     name = "clips",
@@ -25,7 +24,7 @@ import static com.mattmerr.beets.util.UtilD4J.getGuildOrThrow;
       @Option(
           name = "page",
           description = "Page number, for seeing more clips.",
-          type = ApplicationCommandOptionType.INTEGER,
+          type = ApplicationCommandOption.Type.INTEGER,
           required = false)
     })
 @Singleton
@@ -39,7 +38,7 @@ public class ClipListCommand extends CommandBase {
   }
 
   @Override
-  public Mono<Void> execute(SlashCommandEvent event) {
+  public Mono<Void> execute(ChatInputInteractionEvent event) {
     long page = asLong(event.getOption("page")).orElse(0L);
     var guildId = getGuildOrThrow(event);
     EmbedCreateSpec embed;

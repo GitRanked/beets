@@ -7,14 +7,12 @@ import com.google.inject.Singleton;
 import com.mattmerr.beets.commands.CommandDesc.Option;
 import com.mattmerr.beets.vc.VCManager;
 import com.mattmerr.beets.vc.VCSession;
-import discord4j.core.event.domain.Event;
-import discord4j.core.event.domain.interaction.ButtonInteractEvent;
+import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.event.domain.interaction.DeferrableInteractionEvent;
 import discord4j.core.event.domain.interaction.InteractionCreateEvent;
-import discord4j.core.event.domain.interaction.SlashCommandEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
-import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
-import discord4j.rest.util.ApplicationCommandOptionType;
-import java.awt.Button;
+import discord4j.core.object.command.ApplicationCommandOption;
 import reactor.core.publisher.Mono;
 
 @CommandDesc(
@@ -24,7 +22,7 @@ import reactor.core.publisher.Mono;
       @Option(
           name = "index",
           description = "Which beet?",
-          type = ApplicationCommandOptionType.INTEGER,
+          type = ApplicationCommandOption.Type.INTEGER,
           required = false)
     })
 @Singleton
@@ -37,7 +35,7 @@ public class PromoteCommand extends CommandBase implements ButtonCommand {
     this.vcManager = vcManager;
   }
 
-  public Mono<Void> execute(InteractionCreateEvent event, Long index) {
+  public Mono<Void> execute(DeferrableInteractionEvent event, Long index) {
     logCall(event);
     VCSession session = vcManager.pollSession(event);
     if (session.getTrackScheduler().promote(index)) {
@@ -52,14 +50,14 @@ public class PromoteCommand extends CommandBase implements ButtonCommand {
   }
 
   @Override
-  public Mono<Void> execute(ButtonInteractEvent event) {
-    return execute((InteractionCreateEvent) event, null);
+  public Mono<Void> execute(ButtonInteractionEvent event) {
+    return execute((DeferrableInteractionEvent) event, null);
   }
 
   @Override
-  public Mono<Void> execute(SlashCommandEvent event) {
+  public Mono<Void> execute(ChatInputInteractionEvent event) {
     return execute(
-        (InteractionCreateEvent) event,
+        (DeferrableInteractionEvent) event,
         event
             .getOption("index")
             .get()

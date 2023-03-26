@@ -57,7 +57,7 @@
 //    return getChannelForInteraction(interaction).map(this::getSessionOrNull);
 //  }
 //
-//  public Mono<Void> enqueue(SlashCommandEvent event, VoiceChannel channel, String beet) {
+//  public Mono<Void> enqueue(ChatInputInteractionEvent event, VoiceChannel channel, String beet) {
 //    VCSession session = getActiveSession(channel);
 //
 //    return session
@@ -76,7 +76,7 @@
 //        .onErrorResume(e -> event.reply("Error trying to play!"));
 //  }
 //
-//  public Mono<Boolean> interject(SlashCommandEvent event, VoiceChannel channel, String beet) {
+//  public Mono<Boolean> interject(ChatInputInteractionEvent event, VoiceChannel channel, String beet) {
 //    VCSession session = getActiveSession(channel);
 //
 //    return session
